@@ -1,9 +1,11 @@
-﻿using IM_WebAPICore_MongoDB.Models;
+﻿using IM.Models;
+using IM_DataAccess.Models;
 
-namespace IM_WebAPICore_MongoDB.DataService
+namespace IM_DataAccess.DataService
 {
     public interface IUserService
     {
+        Task<AuthenticateResponse> AuthenticateAsync(AuthenticateRequest model);
         Task CreateAsync(User newBook);
         Task<List<User>> GetAsync();
         Task<User?> GetAsync(string id);
