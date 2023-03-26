@@ -1,23 +1,27 @@
 ﻿using IM_WebAPICore_MongoDB.Models;
-using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Configuration;
 using MongoDB.Driver;
 
 namespace IM_WebAPICore_MongoDB.DataService
 {
-    public class UserService
+    public class UserService : IUserService
     {
         private readonly IMongoCollection<User> _userCollection;
-
-        public UserService(IOptions<MongoDBSettings> mongoDBSettings)
+        private readonly IConfiguration _config;
+        public UserService(IConfiguration config)
         {
-            MongoClient client = new MongoClient(mongoDBSettings.Value.ConnectionURI);
-            IMongoDatabase database = client.GetDatabase(mongoDBSettings.Value.DatabaseName);
+            _config = config;
+            MongoClient client = new MongoClient(_config.GetSection("MongoDB:ConnectionURI").Value);
+            IMongoDatabase database = client.GetDatabase(_config.GetSection("MongoDB:DatabaseName").Value);
             _userCollection = database.GetCollection<User>("Users");
+
         }
 
-        public async Task<List<User>> GetAsync() =>
-            await _userCollection.Find(_ => true).ToListAsync();
+        public async Task<List<User>> GetAsync()
+        {
+            return await _userCollection.Find(_ => true).ToListAsync();
 
+        }
         public async Task<User?> GetAsync(string id) =>
             await _userCollection.Find(x => x.Id == id).FirstOrDefaultAsync();
 
