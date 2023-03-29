@@ -1,12 +1,16 @@
-﻿using System;
+﻿using MongoDB.Bson.Serialization.Attributes;
+using MongoDB.Bson;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace IM.Models
+namespace IM_DataAccess.Models
 {
     public class IncidentNotification
     {
+        [BsonId]
+        [BsonRepresentation(BsonType.ObjectId)]
         public string Id { get; set; }
         public string IncidentId { get; set; }
         public string SourceUserId { get; set; }

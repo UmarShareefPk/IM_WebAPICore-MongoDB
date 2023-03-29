@@ -55,6 +55,7 @@ builder.Services.AddSwaggerGen();
 //builder.Services.Configure<MongoDBSettings>(builder.Configuration.GetSection("MongoDB"));
 
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IIncidentService, IncidentService>();
 builder.Services.AddScoped<IJWT, JWT>();
 
 var app = builder.Build();

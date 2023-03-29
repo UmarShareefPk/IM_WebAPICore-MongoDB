@@ -2,9 +2,11 @@
 using IM.Models;
 using IM_DataAccess.Models;
 using Microsoft.Extensions.Configuration;
+using MongoDB.Bson;
 using MongoDB.Driver;
 using MongoDB.Driver.Linq;
 using System.Data;
+using System.Net;
 
 namespace IM_DataAccess.DataService
 {
@@ -13,7 +15,7 @@ namespace IM_DataAccess.DataService
         private readonly IMongoCollection<User> _userCollection;
         private readonly IMongoCollection<UserLogin> _userLoginCollection;
         private readonly IConfiguration _config;
-       
+
         public UserService(IConfiguration config)
         {
             _config = config;
@@ -23,101 +25,105 @@ namespace IM_DataAccess.DataService
             _userLoginCollection = database.GetCollection<UserLogin>("UserLogins");
         }
 
-        public async Task<UserLogin> LoginAsync(string username, string password)
-        {
-            var loginTable = new DataTable();
-            var userTable = new DataTable();
-            var _userLogin = from userLogin in _userLoginCollection.AsQueryable()
-                  where userLogin.Username == username
-                  && userLogin.Password == password
-                  select userLogin;
-
-            return _userLogin.FirstOrDefault();
-            //if (ds == null || ds.Tables.Count == 0 || ds.Tables[0].Rows.Count == 0)
-            //    return null;
-
-            //loginTable = ds.Tables[0];
-            //userTable = ds.Tables[1];
-
-            //var Users = (from rw in userTable.AsEnumerable()
-            //             select new User()
-            //             {
-            //                 Id = rw["Id"].ToString(),
-            //                 CreateDate = DateTime.Parse(rw["CreateDate"].ToString()),
-            //                 FirstName = rw["FirstName"].ToString(),
-            //                 LastName = rw["LastName"].ToString(),
-            //                 ProfilePic = rw["ProfilePic"].ToString(),
-            //                 Email = rw["Email"].ToString(),
-            //                 Phone = rw["Phone"].ToString(),
-            //             }).ToList();
-
-
-            //var userLogin = (from rw in loginTable.AsEnumerable()
-            //                 select new UserLogin()
-            //                 {
-            //                     Id = rw["Id"].ToString(),
-            //                     user = Users.First(),
-            //                     Username = rw["Username"].ToString(),
-            //                     Password = rw["Password"].ToString(),
-            //                     CreateDate = DateTime.Parse(rw["CreateDate"].ToString()),
-            //                     LastLogin = DateTime.Now // DateTime.Parse(rw["LastLogin"].ToString())
-            //                 }).ToList().First();
-
-            //_userLogin.UnreadConversationCount = int.Parse(ds.Tables[2].Rows[0][0].ToString());
-
-            //return _userLogin;
-        }
 
         public async Task<AuthenticateResponse> AuthenticateAsync(AuthenticateRequest model)
         {
-          //  var userLogin = await LoginAsync(model.Username, model.Password);
 
-            var userLogin = await LoginAsync(model.Username, model.Password);
-            if (userLogin is null)
+            var _userLogin = from userLogin in _userLoginCollection.AsQueryable()
+                             where userLogin.Username == model.Username
+                             && userLogin.Password == model.Password
+                             select userLogin;
+
+            var _userLoginData = _userLogin.FirstOrDefault();
+
+            if (_userLoginData is null)
                 return null;
-            var userDetails = await _userCollection.FindAsync(u => u.Id == userLogin.userId);
+            var userDetails = await _userCollection.FindAsync(u => u.Id == _userLoginData.userId);
 
             var response = new AuthenticateResponse
             {
-                Id = userLogin.Id,
-                Username = userLogin.Username,
-                Password = userLogin.Password,
+                Id = _userLoginData.Id,
+                Username = _userLoginData.Username,
+                Password = _userLoginData.Password,
                 user = userDetails.FirstOrDefault(),
-            };           
-           
+            };
+
             return response;
         }
 
+        public async Task<List<User>> GetAllUsersAsync()
+        {
+            return await _userCollection.Find(_ => true).ToListAsync();
+        }
+
+        public async Task<User> AddUserAsync(User user)
+        {
+            await _userCollection.InsertOneAsync(user);
+            return user;
+        }
+
+        public async Task<bool> UpdateHubIdAsync(string userId, string hubId)
+        {
+            var filter = Builders<User>.Filter
+               .Eq(u => u.Id, userId);
+            var update = Builders<User>.Update
+                .Set(u => u.HubId, hubId);
+
+            var updateResult =  await _userCollection.UpdateOneAsync(filter, update);
+           if(updateResult.ModifiedCount > 0)
+                return true;
+           return false;
+        }
+        public async Task<UsersWithPage> GetUsersPageAsync(int pageSize, int pageNumber, string? sortBy, string? sortDirection, string? serach)
+        {
+
+            //var  usersQuery =  _userCollection.Find(u => 
+            //              string.IsNullOrEmpty(serach)? true :
+            //   u.FirstName.ToLower().Contains(serach.ToLower()) || u.LastName.ToLower().Contains(serach.ToLower()));
+            //u.FirstName.Contains(serach) || u.LastName.Contains(serach));
+
+            var usersQuery = from user in _userCollection.AsQueryable()
+                             where user.FirstName.ToLower().Contains(serach.ToLower()) || user.LastName.ToLower().Contains(serach.ToLower())
+                             select user          ;
+
+
+
+            int total = usersQuery.ToEnumerable().Count();
+
+            var users = usersQuery.ToEnumerable().Skip(pageSize * (pageNumber - 1)).Take(pageSize).OrderBy(u => u.CreateDate).ToList();
+
+            return new UsersWithPage
+            {
+                Total_Users = total,
+                Users = users
+            };
+        }
+
+
         public async Task<List<User>> GetAsync()
         {
-            var userLogin = await LoginAsync("umar", "password");
-            var user = await _userCollection.FindAsync(u => u.Id == userLogin.userId);
-            
-            
-            
             return await _userCollection.Find(_ => true).ToListAsync();
-
         }
         public async Task<User?> GetAsync(string id) =>
             await _userCollection.Find(x => x.Id == id).FirstOrDefaultAsync();
 
         public async Task CreateAsync(User newUser)
         {
-           //await _userLoginCollection.InsertOneAsync(new UserLogin
-           // {
-           //     userId = "641f7abd387e0a505b180d98",
-           //     Username = "umar",
-           //     Password ="password",
-           //     CreateDate = DateTime.UtcNow
+            //await _userLoginCollection.InsertOneAsync(new UserLogin
+            // {
+            //     userId = "641f7abd387e0a505b180d98",
+            //     Username = "umar",
+            //     Password ="password",
+            //     CreateDate = DateTime.UtcNow
 
-           // });
+            // });
 
             await _userCollection.InsertOneAsync(newUser);
         }
-            
 
-        public async Task UpdateAsync(string id, User updatedBook) =>
-            await _userCollection.ReplaceOneAsync(x => x.Id == id, updatedBook);
+
+        public async Task UpdateAsync(string id, User updatedUser) =>
+            await _userCollection.ReplaceOneAsync(x => x.Id == id, updatedUser);
 
         public async Task RemoveAsync(string id) =>
             await _userCollection.DeleteOneAsync(x => x.Id == id);
