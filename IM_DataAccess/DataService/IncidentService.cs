@@ -112,13 +112,14 @@ namespace IM_DataAccess.DataService
         {
             var incidentQuery = from incident in _incidentCollection.AsQueryable()
                                 where incident.Title.ToLower().Contains(serach.ToLower()) || incident.Description.ToLower().Contains(serach.ToLower())
+                                orderby incident.CreatedAT descending
                                 select incident;
 
 
 
             int total = incidentQuery.ToEnumerable().Count();
 
-            var incidents = incidentQuery.ToEnumerable().Skip(pageSize * (pageNumber - 1)).Take(pageSize).OrderBy(u => u.CreatedAT).ToList();
+            var incidents = incidentQuery.ToEnumerable().Skip(pageSize * (pageNumber - 1)).Take(pageSize).OrderByDescending(u => u.CreatedAT).ToList();
 
             return new IncidentsWithPage
             {

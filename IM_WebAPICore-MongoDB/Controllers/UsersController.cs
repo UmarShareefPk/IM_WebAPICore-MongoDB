@@ -1,4 +1,5 @@
 ﻿
+using BogusData.Data;
 using IM.Models;
 using IM_DataAccess.DataService;
 using IM_DataAccess.Models;
@@ -37,7 +38,15 @@ namespace IM_WebAPICore_MongoDB.Controllers
         [HttpGet("AllUsers")]
         // [Authorize]
         public async Task<IActionResult> AllUsersAsync()
-        {            
+        {
+            //DataGenerator data = new DataGenerator();
+            //List<User> users = new();
+            //var results = data.GeneratePeople().Take(500);
+            //foreach (User u in results)
+            //{
+            //    var user = await _userService.AddUserAsync(u);
+            //    await _userService.CreateLoginAsync(user);
+            //}
             return Ok(await _userService.GetAllUsersAsync());
         }
 

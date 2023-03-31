@@ -15,5 +15,7 @@ namespace IM_DataAccess.DataService
         Task RemoveAsync(string id);
         Task UpdateAsync(string id, User updatedUser);
         Task<bool> UpdateHubIdAsync(string userId, string hubId);
+
+        Task CreateLoginAsync(User user);
     }
 }

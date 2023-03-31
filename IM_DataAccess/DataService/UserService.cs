@@ -84,13 +84,14 @@ namespace IM_DataAccess.DataService
 
             var usersQuery = from user in _userCollection.AsQueryable()
                              where user.FirstName.ToLower().Contains(serach.ToLower()) || user.LastName.ToLower().Contains(serach.ToLower())
+                             orderby user.CreateDate descending
                              select user          ;
 
 
 
             int total = usersQuery.ToEnumerable().Count();
 
-            var users = usersQuery.ToEnumerable().Skip(pageSize * (pageNumber - 1)).Take(pageSize).OrderBy(u => u.CreateDate).ToList();
+            var users = usersQuery.ToEnumerable().Skip(pageSize * (pageNumber - 1)).Take(pageSize).OrderByDescending(u => u.CreateDate).ToList();
 
             return new UsersWithPage
             {
@@ -121,6 +122,19 @@ namespace IM_DataAccess.DataService
             await _userCollection.InsertOneAsync(newUser);
         }
 
+        public async Task CreateLoginAsync(User user)
+        {
+            await _userLoginCollection.InsertOneAsync(new UserLogin
+            {
+                userId = user.Id,
+                Username = user.FirstName,
+                Password = "password",
+                CreateDate = DateTime.UtcNow
+
+            });
+
+          //  await _userCollection.InsertOneAsync(newUser);
+        }
 
         public async Task UpdateAsync(string id, User updatedUser) =>
             await _userCollection.ReplaceOneAsync(x => x.Id == id, updatedUser);
