@@ -16,13 +16,15 @@ namespace IM_WebAPICore_MongoDB.Controllers
     public class UsersController : Controller
     {
         private readonly IUserService _userService;
+        private readonly IIncidentService _incidentService;
         private readonly IJWT _jwt;
         private readonly IWebHostEnvironment _webHostEnvironment;
-        public UsersController(IUserService userService, IJWT jWT, IWebHostEnvironment webHostEnvironment)
+        public UsersController(IUserService userService, IJWT jWT, IWebHostEnvironment webHostEnvironment, IIncidentService incidentService)
         {
             _userService = userService;
             _jwt = jWT;
             _webHostEnvironment = webHostEnvironment;
+            _incidentService = incidentService;
         }
 
         [HttpPost("authenticate")]
@@ -46,6 +48,18 @@ namespace IM_WebAPICore_MongoDB.Controllers
             //{
             //    var user = await _userService.AddUserAsync(u);
             //    await _userService.CreateLoginAsync(user);
+            //}
+            //DataGenerator data = new DataGenerator();
+            //List<User> users = await _userService.GetAllUsersAsync();
+            //var results = data.GenerateIncidents(users.Take(50)).Take(110);
+
+            //foreach( var incidemt  in results )
+            //{
+            //    incidemt.CreatedAT = incidemt.StartTime.AddDays(-10);
+            //    if (incidemt.DueDate <= incidemt.StartTime)
+            //        incidemt.DueDate = incidemt.StartTime.AddMonths(10);
+             
+            //    await _incidentService.AddIncident(incidemt);
             //}
             return Ok(await _userService.GetAllUsersAsync());
         }
