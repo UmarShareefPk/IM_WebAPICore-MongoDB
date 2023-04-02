@@ -1,4 +1,5 @@
 ﻿
+using Amazon.Runtime.Internal.Util;
 using BogusData.Data;
 using IM.Models;
 using IM_DataAccess.DataService;
@@ -8,6 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace IM_WebAPICore_MongoDB.Controllers
 {
@@ -19,12 +21,14 @@ namespace IM_WebAPICore_MongoDB.Controllers
         private readonly IIncidentService _incidentService;
         private readonly IJWT _jwt;
         private readonly IWebHostEnvironment _webHostEnvironment;
-        public UsersController(IUserService userService, IJWT jWT, IWebHostEnvironment webHostEnvironment, IIncidentService incidentService)
+        private readonly IMemoryCache _memoryCache;
+        public UsersController(IUserService userService, IJWT jWT, IWebHostEnvironment webHostEnvironment, IIncidentService incidentService, IMemoryCache memoryCache)
         {
             _userService = userService;
             _jwt = jWT;
             _webHostEnvironment = webHostEnvironment;
             _incidentService = incidentService;
+            _memoryCache = memoryCache;
         }
 
         [HttpPost("authenticate")]
@@ -34,6 +38,13 @@ namespace IM_WebAPICore_MongoDB.Controllers
             if (response == null)
                 return BadRequest(new { message = "Username or password is incorrect" });
             response.Token = _jwt.GenerateToken(response.user, DateTime.UtcNow.AddDays(10));
+            
+            List<User> allUsers = _memoryCache.Get<List<User>>("allUsers");
+            if (allUsers is null)
+            {
+                allUsers = await _userService.GetAllUsersAsync();
+                _memoryCache.Set("allUsers", allUsers);
+            }
             return Ok(response);
         }
 
@@ -58,10 +69,17 @@ namespace IM_WebAPICore_MongoDB.Controllers
             //    incidemt.CreatedAT = incidemt.StartTime.AddDays(-10);
             //    if (incidemt.DueDate <= incidemt.StartTime)
             //        incidemt.DueDate = incidemt.StartTime.AddMonths(10);
-             
+
             //    await _incidentService.AddIncident(incidemt);
             //}
-            return Ok(await _userService.GetAllUsersAsync());
+
+            List<User> allUsers = _memoryCache.Get<List<User>>("allUsers");
+            if(allUsers is null)
+            {
+                allUsers = await _userService.GetAllUsersAsync();
+                _memoryCache.Set("allUsers", allUsers);
+            }          
+            return Ok(allUsers);
         }
 
         [HttpPost("AddUser")]
@@ -140,5 +158,9 @@ namespace IM_WebAPICore_MongoDB.Controllers
             var s = CreatedAtAction(nameof(Get), new { id = newUser.Id }, newUser);
             return Ok(s);
         }
+
+       
+
+
     }// end of class
 }

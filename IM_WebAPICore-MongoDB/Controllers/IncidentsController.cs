@@ -4,6 +4,7 @@ using IM_WebAPICore_MongoDB.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
 using System.Net;
 
 namespace IM_WebAPICore_MongoDB.Controllers
@@ -14,10 +15,12 @@ namespace IM_WebAPICore_MongoDB.Controllers
     {
         private readonly IWebHostEnvironment _webHostEnvironment;
         private readonly IIncidentService _incidentService;
-        public IncidentsController(IWebHostEnvironment webHostEnvironment, IIncidentService incidentService)
+        private readonly IMemoryCache _memoryCache;
+        public IncidentsController(IWebHostEnvironment webHostEnvironment, IIncidentService incidentService, IMemoryCache memoryCache)
         {
             _webHostEnvironment = webHostEnvironment;
             _incidentService = incidentService;
+            _memoryCache = memoryCache;
         }
 
         [HttpPost("AddIncident")]
@@ -248,6 +251,41 @@ namespace IM_WebAPICore_MongoDB.Controllers
             return response;
         }
 
+       // [Authorize]
+        [HttpGet("KPI")]
+        public async Task<object> GetKPIAsync(string UserId)
+        {
+            return await _incidentService.KPIAsync(UserId);
+        }
 
+        //[Authorize]
+        [HttpGet("OverallWidget")]
+        public async Task<object> GetOverallWidgetAsync(string? UserId)
+        {
+            return await _incidentService.OverallWidgetAsync();
+        }
+
+        //[Authorize]
+        [HttpGet("Last5Incidents")]
+        public async Task<object> GetLast5IncidentsAsync(string? UserId)
+        {
+            return await _incidentService.Last5IncidentsAsync();
+        }
+
+        //[Authorize]
+        [HttpGet("Oldest5UnresolvedIncidents")]
+        public async Task<object> GetOldest5UnresolvedIncidentsAsync(string? UserId)
+        {
+            return await _incidentService.Oldest5UnresolvedIncidentsAsync();
+        }
+
+       // [Authorize]
+        [HttpGet("MostAssignedToUsersIncidents")]
+        public async Task<object> GetMostAssignedToUsersIncidentsAsync(string? UserId)
+        {
+            List<User> allUsers = _memoryCache.Get<List<User>>("allUsers");          
+
+            return await _incidentService.MostAssignedToUsersIncidentsAsync(allUsers);
+        }
     }//end of class
 }

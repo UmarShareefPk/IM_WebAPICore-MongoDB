@@ -18,6 +18,10 @@ namespace IM_DataAccess.DataService
         Task<bool> UpdateIncidentAsync(string incidentId, string parameter, string value, string userId);
         void DeleteDirectory(string path);
 
-
+        Task<object> KPIAsync(string userId);
+        Task<object> OverallWidgetAsync();
+        Task<List<Incident>> Last5IncidentsAsync();
+        Task<List<Incident>> Oldest5UnresolvedIncidentsAsync();
+        Task<object> MostAssignedToUsersIncidentsAsync(List<User> allUsers);
     }
 }

@@ -8,6 +8,7 @@ using MongoDB.Driver.Linq;
 using System;
 using System.Data;
 using System.Net;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace IM_DataAccess.DataService
 {
@@ -82,7 +83,6 @@ namespace IM_DataAccess.DataService
                     > 0) return "Success";
                 else return "error";
             }
-
         }
 
         public async Task<Incident> GetIncidentrByIdAsync(string incidentId)
@@ -95,7 +95,6 @@ namespace IM_DataAccess.DataService
             {
                 comment.attachments = await _commentAttachmentCollection.Find(attch => attch.CommentId == comment.Id).ToListAsync();
             }
-
 
             return incident;
         }
@@ -174,7 +173,93 @@ namespace IM_DataAccess.DataService
                 Directory.Delete(path, true);
             }
         }
-    
 
-} //end of class
+        public async Task<object> KPIAsync(string userId)
+        {
+            var counts = await (from incident in _incidentCollection.AsQueryable()
+                                group incident by incident.Status into g
+                                select new { name = g.Key, count = g.Count() }).ToListAsync();
+
+            var late = await (from incident in _incidentCollection.AsQueryable()
+                              where (incident.Status == "N" || incident.Status == "I") && incident.DueDate < DateTime.UtcNow
+                              select incident).CountAsync();
+
+            var assignedTo = await (from incident in _incidentCollection.AsQueryable()
+                                    where incident.AssignedTo == userId
+                                    select incident).CountAsync();
+
+
+            return new
+            {
+                New = counts.Where(c => c.name == "N").First().count,
+                InProgress = counts.Where(c => c.name == "I").First().count,
+                Closed = counts.Where(c => c.name == "C").First().count,
+                Approved = counts.Where(c => c.name == "A").First().count,
+                Late = late,
+                AssignedToMe = assignedTo
+            };
+        }
+
+        public async Task<object> OverallWidgetAsync()
+        {
+            var counts = await (from incident in _incidentCollection.AsQueryable()
+                                group incident by incident.Status into g
+                                select new { name = g.Key, count = g.Count() }).ToListAsync();
+
+            var late = await (from incident in _incidentCollection.AsQueryable()
+                              where (incident.Status == "N" || incident.Status == "I") && incident.DueDate < DateTime.UtcNow
+                              select incident).CountAsync();
+
+            return new
+            {
+                New = counts.Where(c => c.name == "N").First().count,
+                InProgress = counts.Where(c => c.name == "I").First().count,
+                Closed = counts.Where(c => c.name == "C").First().count,
+                Approved = counts.Where(c => c.name == "A").First().count,
+                Late = late
+            };
+        }
+
+        public async Task<List<Incident>> Last5IncidentsAsync()
+        {
+            return await (from incident in _incidentCollection.AsQueryable()
+                          orderby incident.CreatedAT descending
+                          select incident).Take(5).ToListAsync();
+        }
+        public async Task<List<Incident>> Oldest5UnresolvedIncidentsAsync()
+        {
+            return await (from incident in _incidentCollection.AsQueryable()
+                          where incident.Status == "N" || incident.Status == "I"
+                          orderby incident.CreatedAT ascending
+                          select incident).Take(5).ToListAsync();
+        }
+        public async Task<object> MostAssignedToUsersIncidentsAsync(List<User> allUsers)
+        {
+            var countsQuery = (from incident in _incidentCollection.AsQueryable()
+                               group incident by incident.AssignedTo into g
+                               select new { name = g.Key, count = g.Count() });
+
+            var sorted = countsQuery.OrderByDescending(c => c.count);
+            var counts = sorted.Take(5).ToList();
+
+            //try
+            //{
+            //    var s = allUsers.Where(u => u.Id == "64275396f049968776e5b3f8").Select(u => u.FirstName + " " + u.LastName).First();
+
+            //}
+            //catch (Exception ex)
+            //{
+
+            //}
+         
+            return (from data in counts.AsEnumerable()
+                    select new { 
+                        UserId = data.name, 
+                        Name = allUsers == null? "" : allUsers.Where(u => u.Id == data.name).Select(u => u.FirstName + " " + u.LastName).First(), 
+                        Count = data.count 
+                    })
+                    .ToList();
+        }
+
+    } //end of class
 }
