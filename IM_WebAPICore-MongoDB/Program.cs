@@ -1,4 +1,5 @@
 
+using IM.Hubs;
 using IM_DataAccess.DataService;
 using IM_WebAPICore_MongoDB.Utilities;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -15,6 +16,8 @@ builder.Services.AddControllers().AddJsonOptions(jsonOptions =>
     jsonOptions.JsonSerializerOptions.PropertyNamingPolicy = null;
 })
  .SetCompatibilityVersion(CompatibilityVersion.Version_3_0);
+
+builder.Services.AddSignalR();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                .AddJwtBearer(options => {
@@ -41,11 +44,17 @@ builder.Services.AddCors(options =>
             .AllowAnyMethod()
             //.AllowAnyOrigin()
             .WithOrigins(
+                "https://localhost:44338",
                 "http://localhost:3000",
                 "http://localhost:4200",
-                "https://kineticweb.azurewebsites.net",
-                "https://kineticblu.azurewebsites.net",
-                 "https://kineticblu.com"
+                "https://lively-bush-0d9b77d10.1.azurestaticapps.net",
+                "http://localhost/ImAngular",
+                "https://calm-mud-02aada210.1.azurestaticapps.net",
+                "https://localhost:7135",
+                "https://salmon-bay-0ee5f3310.1.azurestaticapps.net",
+                "https://immvc6.azurewebsites.net",
+                "https://incidentbyid.azurewebsites.net",
+                "https://green-coast-003a53010.1.azurestaticapps.net"
                 )
             .AllowCredentials();
     });
@@ -58,6 +67,7 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IIncidentService, IncidentService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IJWT, JWT>();
 
 var app = builder.Build();
@@ -77,6 +87,7 @@ app.UseAuthorization();
 
 app.UseCors("ClientPermission");
 
+app.MapHub<NotificationHub>("/hubs/notifications");
 app.MapControllers();
 
 app.Run();

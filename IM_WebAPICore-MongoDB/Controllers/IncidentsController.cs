@@ -283,9 +283,7 @@ namespace IM_WebAPICore_MongoDB.Controllers
         [HttpGet("MostAssignedToUsersIncidents")]
         public async Task<object> GetMostAssignedToUsersIncidentsAsync(string? UserId)
         {
-            List<User> allUsers = _memoryCache.Get<List<User>>("allUsers");          
-
-            return await _incidentService.MostAssignedToUsersIncidentsAsync(allUsers);
+            return await _incidentService.MostAssignedToUsersIncidentsAsync();
         }
     }//end of class
 }

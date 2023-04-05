@@ -9,12 +9,14 @@ namespace IM_DataAccess.DataService
         Task<AuthenticateResponse> AuthenticateAsync(AuthenticateRequest model);
         Task CreateAsync(User newUser);
         Task<List<User>> GetAllUsersAsync();
+        Task<string> GetNameByUserId(string userId);
         Task<List<User>> GetAsync();
         Task<User?> GetAsync(string id);
         Task<UsersWithPage> GetUsersPageAsync(int pageSize, int pageNumber, string sortBy, string sortDirection, string Serach);
         Task RemoveAsync(string id);
         Task UpdateAsync(string id, User updatedUser);
         Task<bool> UpdateHubIdAsync(string userId, string hubId);
+        Task<List<string>> GetHubIdsAsync(string incidentId, string userId);
 
         Task CreateLoginAsync(User user);
     }

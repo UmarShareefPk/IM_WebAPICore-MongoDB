@@ -22,6 +22,6 @@ namespace IM_DataAccess.DataService
         Task<object> OverallWidgetAsync();
         Task<List<Incident>> Last5IncidentsAsync();
         Task<List<Incident>> Oldest5UnresolvedIncidentsAsync();
-        Task<object> MostAssignedToUsersIncidentsAsync(List<User> allUsers);
+        Task<object> MostAssignedToUsersIncidentsAsync();
     }
 }

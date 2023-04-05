@@ -7,6 +7,7 @@ using MongoDB.Driver;
 using MongoDB.Driver.Linq;
 using System.Data;
 using System.Net;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace IM_DataAccess.DataService
 {
@@ -15,14 +16,16 @@ namespace IM_DataAccess.DataService
         private readonly IMongoCollection<User> _userCollection;
         private readonly IMongoCollection<UserLogin> _userLoginCollection;
         private readonly IConfiguration _config;
+        private readonly IMemoryCache _memoryCache;
 
-        public UserService(IConfiguration config)
+        public UserService(IConfiguration config, IMemoryCache memoryCache)
         {
             _config = config;
             MongoClient client = new MongoClient(_config.GetValue<string>("MongoDbCon"));
             IMongoDatabase database = client.GetDatabase(_config.GetValue<string>("DB"));
             _userCollection = database.GetCollection<User>("Users");
             _userLoginCollection = database.GetCollection<UserLogin>("UserLogins");
+            _memoryCache = memoryCache;
         }
 
 
@@ -53,12 +56,26 @@ namespace IM_DataAccess.DataService
 
         public async Task<List<User>> GetAllUsersAsync()
         {
-            return await _userCollection.Find(_ => true).ToListAsync();
+            List<User> allUsers = _memoryCache.Get<List<User>>("allUsers");
+            if (allUsers is null)
+            {
+                allUsers = await _userCollection.Find(_ => true).ToListAsync();
+                _memoryCache.Set("allUsers", allUsers);
+            }
+
+            return allUsers;
         }
 
+        public async Task<string> GetNameByUserId(string userId)
+        {
+            var allUser = await GetAllUsersAsync();
+            string name = allUser.Where(u => u.Id == userId).Select(u => u.FirstName + " " + u.LastName).First();
+            return name;
+        }
         public async Task<User> AddUserAsync(User user)
         {
             await _userCollection.InsertOneAsync(user);
+            _memoryCache.Remove("allUsers");
             return user;
         }
 
@@ -69,10 +86,10 @@ namespace IM_DataAccess.DataService
             var update = Builders<User>.Update
                 .Set(u => u.HubId, hubId);
 
-            var updateResult =  await _userCollection.UpdateOneAsync(filter, update);
-           if(updateResult.ModifiedCount > 0)
+            var updateResult = await _userCollection.UpdateOneAsync(filter, update);
+            if (updateResult.ModifiedCount > 0)
                 return true;
-           return false;
+            return false;
         }
         public async Task<UsersWithPage> GetUsersPageAsync(int pageSize, int pageNumber, string? sortBy, string? sortDirection, string? serach)
         {
@@ -85,7 +102,7 @@ namespace IM_DataAccess.DataService
             var usersQuery = from user in _userCollection.AsQueryable()
                              where user.FirstName.ToLower().Contains(serach.ToLower()) || user.LastName.ToLower().Contains(serach.ToLower())
                              orderby user.CreateDate descending
-                             select user          ;
+                             select user;
 
 
 
@@ -133,7 +150,11 @@ namespace IM_DataAccess.DataService
 
             });
 
-          //  await _userCollection.InsertOneAsync(newUser);
+            //  await _userCollection.InsertOneAsync(newUser);
+        }
+        public async Task<List<string>> GetHubIdsAsync(string incidentId, string userId)
+        {
+            return null;
         }
 
         public async Task UpdateAsync(string id, User updatedUser) =>

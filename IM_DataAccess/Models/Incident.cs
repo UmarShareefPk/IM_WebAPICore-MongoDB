@@ -7,6 +7,7 @@ using System.Web;
 
 namespace IM_DataAccess.Models
 {
+    [BsonIgnoreExtraElements]
     public class Incident
     {
         [BsonId]
@@ -18,11 +19,17 @@ namespace IM_DataAccess.Models
         public string Title { get; set; }
         public string Description { get; set; }
         public string AdditionalData { get; set; }
+
+        [BsonIgnore]
         public List<IncidentAttachments> Attachments { get; set; }        
         public DateTime StartTime { get; set; }
         public DateTime DueDate { get; set; }
         public string Status { get; set; }
-        public List<Comment> Comments { get; set; } 
+        
+        [BsonIgnore]
+        public List<Comment> Comments { get; set; }
+
+        [BsonIgnore]
         public List<IncidentLogs> Logs { get; set; }
 
     }

@@ -73,12 +73,9 @@ namespace IM_WebAPICore_MongoDB.Controllers
             //    await _incidentService.AddIncident(incidemt);
             //}
 
-            List<User> allUsers = _memoryCache.Get<List<User>>("allUsers");
-            if(allUsers is null)
-            {
-                allUsers = await _userService.GetAllUsersAsync();
-                _memoryCache.Set("allUsers", allUsers);
-            }          
+            
+             var allUsers = await _userService.GetAllUsersAsync();
+              
             return Ok(allUsers);
         }
 

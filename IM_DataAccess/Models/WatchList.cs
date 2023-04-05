@@ -3,19 +3,19 @@ using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Web;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace IM_DataAccess.Models
 {
-    public class Comment
+    public class WatchList
     {
+
         [BsonId]
         [BsonRepresentation(BsonType.ObjectId)]
-        public string Id { get; set; }
+        public string? Id { get; set; }
         public string IncidentId { get; set; }
         public string UserId { get; set; }
-        public DateTime CreateDate { get; set; } = DateTime.UtcNow;
-        public string CommentText { get; set; }
-        public List<CommentAttachments> attachments { get; set; }
+
     }
 }

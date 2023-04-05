@@ -8,6 +8,7 @@ using MongoDB.Driver.Linq;
 using System;
 using System.Data;
 using System.Net;
+using System.Xml.Linq;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace IM_DataAccess.DataService
@@ -23,8 +24,10 @@ namespace IM_DataAccess.DataService
 
 
         private readonly IConfiguration _config;
+        private readonly INotificationService _notificationService;
+        private readonly IUserService _userService;
 
-        public IncidentService(IConfiguration config)
+        public IncidentService(IConfiguration config, INotificationService notificationService, IUserService userService)
         {
             _config = config;
             MongoClient client = new MongoClient(_config.GetValue<string>("MongoDbCon"));
@@ -34,11 +37,26 @@ namespace IM_DataAccess.DataService
             _incidentAttachmentCollection = database.GetCollection<IncidentAttachments>("IncidentAttachments");
             _commentCollection = database.GetCollection<Comment>("Comments");
             _commentAttachmentCollection = database.GetCollection<CommentAttachments>("CommentAttachments");
+            _notificationService = notificationService;
+            _userService = userService;
         }
 
         public async Task<Incident> AddIncident(Incident incident)
         {
-            await _incidentCollection.InsertOneAsync(incident); return incident;
+            await _incidentCollection.InsertOneAsync(incident);
+            await _notificationService.AddToWatchList(incident.Id, incident.CreatedBy);
+            await _notificationService.AddToWatchList(incident.Id, incident.AssignedTo);
+            await _notificationService.AddNotification(new IncidentNotification
+            {
+                CreateDate = DateTime.UtcNow,
+                IsRead = false,
+                NotifyAbout = await _userService.GetNameByUserId(incident.CreatedBy) + " created and incident and assigned it to you." ,
+                SourceUserId = incident.CreatedBy,
+                UserId = incident.AssignedTo,
+                IncidentId = incident.Id,
+
+            });
+            return incident;
         }
 
         public async Task<IncidentAttachments> AddIncidentAttachmentsAsync(IncidentAttachments incidentAttachments)
@@ -47,8 +65,27 @@ namespace IM_DataAccess.DataService
         }
 
         public async Task<Comment> AddCommentAsync(Comment comment)
-        {
-            await _commentCollection.InsertOneAsync(comment); return comment;
+        {          
+            await _commentCollection.InsertOneAsync(comment);
+            await _notificationService.AddToWatchList(comment.IncidentId, comment.UserId);
+
+            var watchList = await _notificationService.GetWatchListByIncident(comment.IncidentId);
+
+            foreach(var watch in watchList)
+            {
+                await _notificationService.AddNotification(new IncidentNotification
+                {
+                    CreateDate = DateTime.UtcNow,
+                    IsRead = false,
+                    NotifyAbout = await _userService.GetNameByUserId(comment.UserId) + " added a comment to incident.",
+                    SourceUserId = comment.UserId,
+                    UserId = watch.UserId,
+                    IncidentId = comment.IncidentId,
+                });
+            }
+
+            return comment;
+
         }
 
         public async Task<CommentAttachments> AddCommentAttachmentsAsync(CommentAttachments commentAttachments)
@@ -103,7 +140,25 @@ namespace IM_DataAccess.DataService
         {
             var response = await _commentCollection.DeleteOneAsync(c => c.Id == commentId);
             if (response.DeletedCount
-                > 0) return true;
+                > 0)
+            {
+                var comment = await _commentCollection.Find(c => c.Id == commentId).FirstAsync();              
+                var watchList = await _notificationService.GetWatchListByIncident(comment.IncidentId);
+
+                foreach (var watch in watchList)
+                {
+                    await _notificationService.AddNotification(new IncidentNotification
+                    {
+                        CreateDate = DateTime.UtcNow,
+                        IsRead = false,
+                        NotifyAbout = await _userService.GetNameByUserId(comment.UserId) + " deleted a comment.",
+                        SourceUserId = userId,
+                        UserId = watch.UserId,
+                        IncidentId = comment.IncidentId,
+                    });
+                }
+                return true;
+            }
             else return false;
         }
 
@@ -136,7 +191,25 @@ namespace IM_DataAccess.DataService
 
             var updateResult = await _incidentCollection.UpdateOneAsync(filter, update);
             if (updateResult.ModifiedCount > 0)
+            {
+                await _notificationService.AddToWatchList(incidentId, userId);
+                var watchList = await _notificationService.GetWatchListByIncident(incidentId);
+
+                foreach (var watch in watchList)
+                {
+                    await _notificationService.AddNotification(new IncidentNotification
+                    {
+                        CreateDate = DateTime.UtcNow,
+                        IsRead = false,
+                        NotifyAbout = await _userService.GetNameByUserId(userId) + " updated " + parameter  +" for an incident.",
+                        SourceUserId = userId,
+                        UserId = watch.UserId,
+                        IncidentId = incidentId,
+                    });
+                }
                 return true;
+            }
+
             return false;
         }
 
@@ -149,7 +222,26 @@ namespace IM_DataAccess.DataService
 
             var updateResult = await _commentCollection.UpdateOneAsync(filter, update);
             if (updateResult.ModifiedCount > 0)
+            {
+                var comment = await _commentCollection.Find(c => c.Id == commentId).FirstAsync();
+                var watchList = await _notificationService.GetWatchListByIncident(comment.IncidentId);
+
+                foreach (var watch in watchList)
+                {
+                    await _notificationService.AddNotification(new IncidentNotification
+                    {
+                        CreateDate = DateTime.UtcNow,
+                        IsRead = false,
+                        NotifyAbout = await _userService.GetNameByUserId(comment.UserId) + " updated a comment.",
+                        SourceUserId = userId,
+                        UserId = watch.UserId,
+                        IncidentId = comment.IncidentId,
+                    });
+                }
+
                 return true;
+            }
+               
             return false;
         }
 
@@ -228,12 +320,18 @@ namespace IM_DataAccess.DataService
         }
         public async Task<List<Incident>> Oldest5UnresolvedIncidentsAsync()
         {
-            return await (from incident in _incidentCollection.AsQueryable()
-                          where incident.Status == "N" || incident.Status == "I"
-                          orderby incident.CreatedAT ascending
-                          select incident).Take(5).ToListAsync();
+            try {
+                return await (from incident in _incidentCollection.AsQueryable()
+                              where incident.Status == "N" || incident.Status == "I"
+                              orderby incident.CreatedAT ascending
+                              select incident).Take(5).ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                return null;
+            }
         }
-        public async Task<object> MostAssignedToUsersIncidentsAsync(List<User> allUsers)
+        public async Task<object> MostAssignedToUsersIncidentsAsync()
         {
             var countsQuery = (from incident in _incidentCollection.AsQueryable()
                                group incident by incident.AssignedTo into g
@@ -242,21 +340,11 @@ namespace IM_DataAccess.DataService
             var sorted = countsQuery.OrderByDescending(c => c.count);
             var counts = sorted.Take(5).ToList();
 
-            //try
-            //{
-            //    var s = allUsers.Where(u => u.Id == "64275396f049968776e5b3f8").Select(u => u.FirstName + " " + u.LastName).First();
-
-            //}
-            //catch (Exception ex)
-            //{
-
-            //}
-         
             return (from data in counts.AsEnumerable()
-                    select new { 
-                        UserId = data.name, 
-                        Name = allUsers == null? "" : allUsers.Where(u => u.Id == data.name).Select(u => u.FirstName + " " + u.LastName).First(), 
-                        Count = data.count 
+                    select new {
+                        UserId = data.name,
+                        Name =  _userService.GetNameByUserId(data.name).Result,
+                        Count = data.count
                     })
                     .ToList();
         }
