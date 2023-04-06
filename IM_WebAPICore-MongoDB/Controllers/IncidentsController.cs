@@ -1,6 +1,7 @@
 ﻿using IM_DataAccess.DataService;
 using IM_DataAccess.Models;
 using IM_WebAPICore_MongoDB.Utilities;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -24,7 +25,7 @@ namespace IM_WebAPICore_MongoDB.Controllers
         }
 
         [HttpPost("AddIncident")]
-       // [Authorize]
+        [Authorize]
         public async Task<IActionResult> AddIncident()
         {
             Incident incident = new Incident();
@@ -107,7 +108,7 @@ namespace IM_WebAPICore_MongoDB.Controllers
 
 
         [HttpPost("AddComment")]
-       // [Authorize]
+        [Authorize]
         public async Task<IActionResult> AddComment()
         {
             Comment comment = new Comment();
@@ -155,7 +156,7 @@ namespace IM_WebAPICore_MongoDB.Controllers
 
 
         [HttpGet("IncidentById")]
-       // [Authorize]
+        [Authorize]
         public async Task<IActionResult> IncidentByIdAsync(string Id)
         {
             //Thread.Sleep(2000);
@@ -183,7 +184,7 @@ namespace IM_WebAPICore_MongoDB.Controllers
         }
 
         [HttpGet("DeleteFile")]
-       // [Authorize]
+        [Authorize]
         public async Task<string> DeleteFileAsync(string type, string commentId, string incidentId, string userId, string fileId, string filename, string contentType)
         {
             string ContentType = contentType;
@@ -214,7 +215,7 @@ namespace IM_WebAPICore_MongoDB.Controllers
 
 
         [HttpGet("DeleteComment")]
-       // [Authorize]
+        [Authorize]
         public async Task<string> DeleteCommentAsync(string commentId, string incidentId, string userId)
         {
             await _incidentService.DeleteCommentAsync(commentId, userId);
@@ -229,20 +230,20 @@ namespace IM_WebAPICore_MongoDB.Controllers
 
 
         [HttpPost("UpdateIncident")]
-       // [Authorize]
+        [Authorize]
         public async Task UpdateIncidentAsync([FromBody] IncidentUpdate IU) //IU = IncidentUpdate, 
         {
             await _incidentService.UpdateIncidentAsync(IU.IncidentId, IU.Parameter, IU.Value, IU.UserId);
         }
 
         [HttpPost("UpdateComment")]
-        //[Authorize]
+        [Authorize]
         public async Task UpdateCommentAsync([FromBody] Comment C)
         {
             await _incidentService.UpdateCommentAsync(C.Id, C.CommentText, C.UserId);
         }
 
-        //[Authorize]
+        [Authorize]
         [HttpGet("GetIncidentsWithPage")]
         public async Task<object> GetIncidentsWithPageAsync(int PageSize = 5, int PageNumber = 1, string SortBy = "a", string SortDirection = "a", string? Search = "")
         {
@@ -251,35 +252,35 @@ namespace IM_WebAPICore_MongoDB.Controllers
             return response;
         }
 
-       // [Authorize]
+        [Authorize]
         [HttpGet("KPI")]
         public async Task<object> GetKPIAsync(string UserId)
         {
             return await _incidentService.KPIAsync(UserId);
         }
 
-        //[Authorize]
+        [Authorize]
         [HttpGet("OverallWidget")]
         public async Task<object> GetOverallWidgetAsync(string? UserId)
         {
             return await _incidentService.OverallWidgetAsync();
         }
 
-        //[Authorize]
+        [Authorize]
         [HttpGet("Last5Incidents")]
         public async Task<object> GetLast5IncidentsAsync(string? UserId)
         {
             return await _incidentService.Last5IncidentsAsync();
         }
 
-        //[Authorize]
+        [Authorize]
         [HttpGet("Oldest5UnresolvedIncidents")]
         public async Task<object> GetOldest5UnresolvedIncidentsAsync(string? UserId)
         {
             return await _incidentService.Oldest5UnresolvedIncidentsAsync();
         }
 
-       // [Authorize]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         [HttpGet("MostAssignedToUsersIncidents")]
         public async Task<object> GetMostAssignedToUsersIncidentsAsync(string? UserId)
         {

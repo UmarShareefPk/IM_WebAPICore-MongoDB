@@ -15,6 +15,7 @@ namespace IM_DataAccess.DataService
     {
         private readonly IMongoCollection<User> _userCollection;
         private readonly IMongoCollection<UserLogin> _userLoginCollection;
+        private readonly IMongoCollection<IncidentNotification> _incidentNotification;
         private readonly IConfiguration _config;
         private readonly IMemoryCache _memoryCache;
 
@@ -25,6 +26,7 @@ namespace IM_DataAccess.DataService
             IMongoDatabase database = client.GetDatabase(_config.GetValue<string>("DB"));
             _userCollection = database.GetCollection<User>("Users");
             _userLoginCollection = database.GetCollection<UserLogin>("UserLogins");
+            _incidentNotification = database.GetCollection<IncidentNotification>("IncidentNotifications");
             _memoryCache = memoryCache;
         }
 
@@ -154,8 +156,24 @@ namespace IM_DataAccess.DataService
         }
         public async Task<List<string>> GetHubIdsAsync(string incidentId, string userId)
         {
-            return null;
+            var notifications = await _incidentNotification.Find(n => n.IncidentId == incidentId).ToListAsync();
+
+            List<string> ids = notifications.Select(n => n.UserId).ToList();
+
+            List<ObjectId> objIds = new List<ObjectId>();
+            foreach (var id in ids)
+            {
+                objIds.Add(ObjectId.Parse(id));
+            }
+
+            var filter = Builders<User>.Filter.AnyIn("_id", objIds);
+            var userQuery = await _userCollection.FindAsync(filter);
+
+            List<string> hubIds = userQuery.ToList().Select(x => x.HubId).ToList();
+
+            return hubIds;
         }
+
 
         public async Task UpdateAsync(string id, User updatedUser) =>
             await _userCollection.ReplaceOneAsync(x => x.Id == id, updatedUser);

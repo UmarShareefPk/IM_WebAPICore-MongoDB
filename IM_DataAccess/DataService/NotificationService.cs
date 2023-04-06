@@ -64,7 +64,8 @@ namespace IM_DataAccess.DataService
 
         public async Task<List<IncidentNotification>> GetUserNotificationsAsync(string userId)
         {
-            return await _incidentNotification.Find(noti => noti.UserId == userId).ToListAsync();
+            var notifications =  await _incidentNotification.Find(noti => noti.UserId == userId).ToListAsync();
+            return notifications.OrderByDescending(n=> n.CreateDate).ToList();
         }
 
         public async Task<bool> UpdateIsReadAsync(string notificationId, bool isRead)
@@ -81,5 +82,6 @@ namespace IM_DataAccess.DataService
 
         }
 
+    
     }// end of class
 }

@@ -19,16 +19,18 @@ namespace IM_WebAPICore_MongoDB.Controllers
     {
         private readonly IUserService _userService;
         private readonly IIncidentService _incidentService;
+        private readonly INotificationService _notificationService;
         private readonly IJWT _jwt;
         private readonly IWebHostEnvironment _webHostEnvironment;
         private readonly IMemoryCache _memoryCache;
-        public UsersController(IUserService userService, IJWT jWT, IWebHostEnvironment webHostEnvironment, IIncidentService incidentService, IMemoryCache memoryCache)
+        public UsersController(IUserService userService, IJWT jWT, IWebHostEnvironment webHostEnvironment, IIncidentService incidentService, IMemoryCache memoryCache, INotificationService notificationService)
         {
             _userService = userService;
             _jwt = jWT;
             _webHostEnvironment = webHostEnvironment;
             _incidentService = incidentService;
             _memoryCache = memoryCache;
+            _notificationService = notificationService;
         }
 
         [HttpPost("authenticate")]
@@ -51,6 +53,14 @@ namespace IM_WebAPICore_MongoDB.Controllers
         [HttpGet("AllUsers")]
         // [Authorize]
         public async Task<IActionResult> AllUsersAsync()
+        {           
+             var allUsers = await _userService.GetAllUsersAsync();              
+             return Ok(allUsers);
+        }
+
+
+        [HttpGet("DataGenerator")]
+        public async Task<IActionResult> DataGenerator()
         {
             //DataGenerator data = new DataGenerator();
             //List<User> users = new();
@@ -73,14 +83,16 @@ namespace IM_WebAPICore_MongoDB.Controllers
             //    await _incidentService.AddIncident(incidemt);
             //}
 
-            
-             var allUsers = await _userService.GetAllUsersAsync();
-              
-            return Ok(allUsers);
+
+          
+
+            return Ok("Data has been generated.");
         }
 
+
+
         [HttpPost("AddUser")]
-        //[Authorize]
+        [Authorize]
         public async Task<IActionResult> AddUser()
         {
             User user = new User();
@@ -125,7 +137,7 @@ namespace IM_WebAPICore_MongoDB.Controllers
         }
 
         [HttpGet("GetUsersWithPage")]
-        //[Authorize]
+        [Authorize]
         public async Task<IActionResult> GetUsersWithPageAsync(int PageSize = 5, int PageNumber = 1, string SortBy = "a", string SortDirection = "a", string? Search = "")
         {
             var response = await _userService.GetUsersPageAsync(PageSize, PageNumber, SortBy, SortDirection, Search);
@@ -134,7 +146,7 @@ namespace IM_WebAPICore_MongoDB.Controllers
 
 
         [HttpPost("UpdateHubId")]
-       // [Authorize]
+        [Authorize]
         public async Task<IActionResult> UpdateHubIdAsync([FromBody] HubUpdate HU)
         {
             var response = await _userService.UpdateHubIdAsync(HU.UserId, HU.HubId);
@@ -143,18 +155,39 @@ namespace IM_WebAPICore_MongoDB.Controllers
             return Ok();
         }
 
+        [HttpGet("UpdateIsRead")]
+        [Authorize]
+        public async Task<IActionResult> UpdateIsReadAsync(string notificationId, string isRead)
+        {
+            bool isReadStatus = bool.Parse(isRead);
+            var isSuccess = await _notificationService.UpdateIsReadAsync(notificationId, isReadStatus);
+            if (!isSuccess)
+                return StatusCode(500);
+            return Ok();
+        }
+
+
+        [HttpGet("UserNotifications")]
+        [Authorize]
+        public async Task<IActionResult> UserNotificationsAsync(string userId)
+        {
+            return Ok(await _notificationService.GetUserNotificationsAsync(userId));
+        }
+
+
         [HttpGet]
         public async Task<List<User>> Get() =>
          await _userService.GetAsync();
 
-        [HttpPost]
-        public async Task<IActionResult> Post(User newUser)
-        {
-            await _userService.CreateAsync(newUser);
+        //[HttpPost]
+        //public async Task<IActionResult> Post(User newUser)
+        //{
+        //    await _userService.CreateAsync(newUser);
+        //    var s = CreatedAtAction(nameof(Get), new { id = newUser.Id }, newUser);
+        //    return Ok(s);
+        //}
 
-            var s = CreatedAtAction(nameof(Get), new { id = newUser.Id }, newUser);
-            return Ok(s);
-        }
+
 
        
 

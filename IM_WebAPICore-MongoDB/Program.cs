@@ -25,12 +25,20 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                    {
                        ValidateIssuer = true,
                        ValidateAudience = true,
-                       ValidateLifetime = true,
+                       ValidateLifetime = false,
                        ValidateIssuerSigningKey = true,
                        ValidIssuer = "IM Core with Mongo DB",
-                       ValidAudience = "All",
+                       ValidAudience = "all",
                        ClockSkew = TimeSpan.Zero,
                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JwtSecret"]))
+                   };
+                   options.Events = new JwtBearerEvents
+                   {
+                       OnAuthenticationFailed = async ctx =>
+                       {
+                           var putBreakpointHere = true;
+                           var exceptionMessage = ctx.Exception;
+                       },
                    };
                });
 
@@ -87,7 +95,8 @@ app.UseAuthorization();
 
 app.UseCors("ClientPermission");
 
-app.MapHub<NotificationHub>("/hubs/notifications");
+
 app.MapControllers();
+app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.Run();

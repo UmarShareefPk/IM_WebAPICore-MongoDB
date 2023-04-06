@@ -73,6 +73,8 @@ namespace IM_DataAccess.DataService
 
             foreach(var watch in watchList)
             {
+                if (watch.UserId == comment.UserId)
+                    continue;
                 await _notificationService.AddNotification(new IncidentNotification
                 {
                     CreateDate = DateTime.UtcNow,
@@ -147,6 +149,8 @@ namespace IM_DataAccess.DataService
 
                 foreach (var watch in watchList)
                 {
+                    if (watch.UserId == userId)
+                        continue;
                     await _notificationService.AddNotification(new IncidentNotification
                     {
                         CreateDate = DateTime.UtcNow,
@@ -197,6 +201,8 @@ namespace IM_DataAccess.DataService
 
                 foreach (var watch in watchList)
                 {
+                    if (watch.UserId == userId)
+                        continue;
                     await _notificationService.AddNotification(new IncidentNotification
                     {
                         CreateDate = DateTime.UtcNow,
@@ -228,6 +234,8 @@ namespace IM_DataAccess.DataService
 
                 foreach (var watch in watchList)
                 {
+                    if (watch.UserId == userId)
+                        continue;
                     await _notificationService.AddNotification(new IncidentNotification
                     {
                         CreateDate = DateTime.UtcNow,
