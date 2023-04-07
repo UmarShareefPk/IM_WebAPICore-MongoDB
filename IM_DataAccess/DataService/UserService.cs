@@ -21,6 +21,7 @@ namespace IM_DataAccess.DataService
         Task<List<User>> GetAsync();
         Task<User?> GetAsync(string id);
         Task<List<string>> GetHubIdsAsync(string incidentId, string userId);
+        Task<string> GetHubIdByUserIdAsync(string userId);
         Task<string> GetNameByUserId(string userId);
         Task<UsersWithPage> GetUsersPageAsync(int pageSize, int pageNumber, string? sortBy, string? sortDirection, string? serach);
         Task RemoveAsync(string id);
@@ -191,9 +192,14 @@ namespace IM_DataAccess.DataService
             return hubIds;
         }
 
+        public async Task<string> GetHubIdByUserIdAsync(string userId)
+        {
+           User user = await _userCollection.Find(u => u.Id == userId).FirstAsync();
+            return user.HubId;
+        }
 
         public async Task UpdateAsync(string id, User updatedUser) =>
-            await _userCollection.ReplaceOneAsync(x => x.Id == id, updatedUser);
+        await _userCollection.ReplaceOneAsync(x => x.Id == id, updatedUser);
 
         public async Task RemoveAsync(string id) =>
             await _userCollection.DeleteOneAsync(x => x.Id == id);

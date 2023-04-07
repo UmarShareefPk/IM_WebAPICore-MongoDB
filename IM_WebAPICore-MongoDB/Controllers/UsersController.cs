@@ -20,10 +20,11 @@ namespace IM_WebAPICore_MongoDB.Controllers
         private readonly IUserService _userService;
         private readonly IIncidentService _incidentService;
         private readonly INotificationService _notificationService;
+        private readonly IMessageService _messageService;
         private readonly IJWT _jwt;
         private readonly IWebHostEnvironment _webHostEnvironment;
         private readonly IMemoryCache _memoryCache;
-        public UsersController(IUserService userService, IJWT jWT, IWebHostEnvironment webHostEnvironment, IIncidentService incidentService, IMemoryCache memoryCache, INotificationService notificationService)
+        public UsersController(IUserService userService, IJWT jWT, IWebHostEnvironment webHostEnvironment, IIncidentService incidentService, IMemoryCache memoryCache, INotificationService notificationService, IMessageService messageService)
         {
             _userService = userService;
             _jwt = jWT;
@@ -31,6 +32,7 @@ namespace IM_WebAPICore_MongoDB.Controllers
             _incidentService = incidentService;
             _memoryCache = memoryCache;
             _notificationService = notificationService;
+            _messageService = messageService;
         }
 
         [HttpPost("authenticate")]
@@ -84,7 +86,14 @@ namespace IM_WebAPICore_MongoDB.Controllers
             //}
 
 
-          
+            DataGenerator data = new DataGenerator();
+            List<User> users = await _userService.GetAllUsersAsync();
+            var results = data.GenerateMessages(users.Take(50)).Take(2000);
+            foreach(Message message in results)
+            {
+                if (message.From == message.To) continue;
+                await _messageService.AddMessageAsync(message.From, message.To, message.MessageText);
+            }
 
             return Ok("Data has been generated.");
         }

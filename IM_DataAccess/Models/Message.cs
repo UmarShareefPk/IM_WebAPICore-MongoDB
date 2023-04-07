@@ -13,8 +13,8 @@ namespace IM_DataAccess.Models
         public string To { get; set; }
         public string MessageText { get; set; }
         public DateTime Date { get; set; } = DateTime.UtcNow;
-        public string Status { get; set; }
-        public bool Deleted { get; set; }
+        public string Status { get; set; } = "Unread";
+        public bool Deleted { get; set; } = false;
         public string ConversationId { get; set; }
 
     }

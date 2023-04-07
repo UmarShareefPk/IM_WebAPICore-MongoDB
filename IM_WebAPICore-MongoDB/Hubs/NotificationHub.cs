@@ -54,16 +54,16 @@ namespace IM.Hubs
 
         public async Task SendMessageAsync(string conversationId, string userId, object newMessage, bool isNewConversation)
         {
-            //string hubId = await _usersMethods.GetHubIdByUserIdAsync(userId);
+            string hubId = await _userService.GetHubIdByUserIdAsync(userId);
 
-            //if (isNewConversation)
-            //{
-            //    await Clients.Client(hubId).SendAsync("ReceiveNewConversation", newMessage);
-            //}
-            //else
-            //{
-            //    await Clients.Client(hubId).SendAsync("ReceiveNewMessage", newMessage);
-            //}
+            if (isNewConversation)
+            {
+                await Clients.Client(hubId).SendAsync("ReceiveNewConversation", newMessage);
+            }
+            else
+            {
+                await Clients.Client(hubId).SendAsync("ReceiveNewMessage", newMessage);
+            }
 
         }
 

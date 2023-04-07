@@ -15,9 +15,9 @@ namespace IM_DataAccess.DataService
     public interface IMessageService
     {
         Task<object> AddMessageAsync(string From, string To, string MessageText);
-        Task<object> ChangeMessageStatusAsync(string MessageId, string Status);
+        Task<bool> ChangeMessageStatusAsync(string MessageId, string Status);
         Task<bool> DeleteConversationAsync(string ConversationId);
-        Task<object> DeleteMessageAsync(string MessageId);
+        Task<bool> DeleteMessageAsync(string MessageId);
         Task<List<Conversation>> GetConversationsByUserAsync(string UserId);
         Task<List<Message>> GetMessagesByConversationsAsync(string ConversationId);
         Task<object> GetMessagesByUserAsync(string UserId);
@@ -90,7 +90,7 @@ namespace IM_DataAccess.DataService
         public async Task<List<Conversation>> GetConversationsByUserAsync(string UserId)
         {
             var conversations = await _conversationCollection.Find(c => c.User1 == UserId || c.User2 == UserId).ToListAsync();
-
+            conversations = conversations.OrderByDescending(c =>c.LastMessageTime).ToList();
             conversations.Select(c =>
             {
                 c.UnReadCount = (int)_messageCollection.Find(m => m.To == UserId || m.ConversationId == c.Id).CountDocuments();
@@ -106,7 +106,7 @@ namespace IM_DataAccess.DataService
             return true;
         }
 
-        public async Task<object> DeleteMessageAsync(string MessageId)
+        public async Task<bool> DeleteMessageAsync(string MessageId)
         {
             var message = await _messageCollection.Find(m => m.Id == MessageId).FirstOrDefaultAsync();
             var conversationId = message.ConversationId;
@@ -125,7 +125,7 @@ namespace IM_DataAccess.DataService
             return true;
         }
 
-        public async Task<object> ChangeMessageStatusAsync(string MessageId, string Status)
+        public async Task<bool> ChangeMessageStatusAsync(string MessageId, string Status)
         {
             var filter = Builders<Message>.Filter
            .Eq(m => m.Id, MessageId);
@@ -142,7 +142,8 @@ namespace IM_DataAccess.DataService
 
         public async Task<List<Message>> GetMessagesByConversationsAsync(string ConversationId)
         {
-            return await _messageCollection.Find(m => m.ConversationId == ConversationId).ToListAsync();
+            var messages = await _messageCollection.Find(m => m.ConversationId == ConversationId).ToListAsync();
+            return messages.OrderBy(m => m.Date).ToList();
         }
 
         public async Task<object> GetMessagesByUserAsync(string UserId)
