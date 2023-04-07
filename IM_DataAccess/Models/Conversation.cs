@@ -4,6 +4,7 @@ using System;
 
 namespace IM_DataAccess.Models
 {
+    [BsonIgnoreExtraElements]
     public class Conversation
     {
         [BsonId]
@@ -13,6 +14,8 @@ namespace IM_DataAccess.Models
         public string User2 { get; set; }
         public DateTime LastMessageTime { get; set; }
         public string LastMessage { get; set; }
+
+        [BsonIgnore]
         public int UnReadCount { get; set; }
 
     }

@@ -11,6 +11,23 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace IM_DataAccess.DataService
 {
+    public interface IUserService
+    {
+        Task<User> AddUserAsync(User user);
+        Task<AuthenticateResponse> AuthenticateAsync(AuthenticateRequest model);
+        Task CreateAsync(User newUser);
+        Task CreateLoginAsync(User user);
+        Task<List<User>> GetAllUsersAsync();
+        Task<List<User>> GetAsync();
+        Task<User?> GetAsync(string id);
+        Task<List<string>> GetHubIdsAsync(string incidentId, string userId);
+        Task<string> GetNameByUserId(string userId);
+        Task<UsersWithPage> GetUsersPageAsync(int pageSize, int pageNumber, string? sortBy, string? sortDirection, string? serach);
+        Task RemoveAsync(string id);
+        Task UpdateAsync(string id, User updatedUser);
+        Task<bool> UpdateHubIdAsync(string userId, string hubId);
+    }
+
     public class UserService : IUserService
     {
         private readonly IMongoCollection<User> _userCollection;

@@ -13,6 +13,28 @@ using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace IM_DataAccess.DataService
 {
+    public interface IIncidentService
+    {
+        Task<Comment> AddCommentAsync(Comment comment);
+        Task<CommentAttachments> AddCommentAttachmentsAsync(CommentAttachments commentAttachments);
+        Task<Incident> AddIncident(Incident incident);
+        Task<IncidentAttachments> AddIncidentAttachmentsAsync(IncidentAttachments incidentAttachments);
+        Task<bool> DeleteCommentAsync(string commentId, string userId);
+        void DeleteDirectory(string path);
+        Task<string> DeleteFileAsync(string type, string filetId, string userId);
+        Task<Comment> GetCommentByIdAsync(string commentId);
+        Task<List<IncidentAttachments>> GetIncidentAttachmentAsync(string incidentId);
+        Task<Incident> GetIncidentrByIdAsync(string incidentId);
+        Task<IncidentsWithPage> GetIncidentsPageAsync(int pageSize, int pageNumber, string? sortBy, string? sortDirection, string? serach);
+        Task<object> KPIAsync(string userId);
+        Task<List<Incident>> Last5IncidentsAsync();
+        Task<object> MostAssignedToUsersIncidentsAsync();
+        Task<List<Incident>> Oldest5UnresolvedIncidentsAsync();
+        Task<object> OverallWidgetAsync();
+        Task<bool> UpdateCommentAsync(string commentId, string commentText, string userId);
+        Task<bool> UpdateIncidentAsync(string incidentId, string parameter, string value, string userId);
+    }
+
     public class IncidentService : IIncidentService
     {
         private readonly IMongoCollection<User> _userCollection;
@@ -50,7 +72,7 @@ namespace IM_DataAccess.DataService
             {
                 CreateDate = DateTime.UtcNow,
                 IsRead = false,
-                NotifyAbout = await _userService.GetNameByUserId(incident.CreatedBy) + " created and incident and assigned it to you." ,
+                NotifyAbout = await _userService.GetNameByUserId(incident.CreatedBy) + " created and incident and assigned it to you.",
                 SourceUserId = incident.CreatedBy,
                 UserId = incident.AssignedTo,
                 IncidentId = incident.Id,
@@ -65,13 +87,13 @@ namespace IM_DataAccess.DataService
         }
 
         public async Task<Comment> AddCommentAsync(Comment comment)
-        {          
+        {
             await _commentCollection.InsertOneAsync(comment);
             await _notificationService.AddToWatchList(comment.IncidentId, comment.UserId);
 
             var watchList = await _notificationService.GetWatchListByIncident(comment.IncidentId);
 
-            foreach(var watch in watchList)
+            foreach (var watch in watchList)
             {
                 if (watch.UserId == comment.UserId)
                     continue;
@@ -144,7 +166,7 @@ namespace IM_DataAccess.DataService
             if (response.DeletedCount
                 > 0)
             {
-                var comment = await _commentCollection.Find(c => c.Id == commentId).FirstAsync();              
+                var comment = await _commentCollection.Find(c => c.Id == commentId).FirstAsync();
                 var watchList = await _notificationService.GetWatchListByIncident(comment.IncidentId);
 
                 foreach (var watch in watchList)
@@ -207,7 +229,7 @@ namespace IM_DataAccess.DataService
                     {
                         CreateDate = DateTime.UtcNow,
                         IsRead = false,
-                        NotifyAbout = await _userService.GetNameByUserId(userId) + " updated " + parameter  +" for an incident.",
+                        NotifyAbout = await _userService.GetNameByUserId(userId) + " updated " + parameter + " for an incident.",
                         SourceUserId = userId,
                         UserId = watch.UserId,
                         IncidentId = incidentId,
@@ -249,7 +271,7 @@ namespace IM_DataAccess.DataService
 
                 return true;
             }
-               
+
             return false;
         }
 
@@ -328,7 +350,8 @@ namespace IM_DataAccess.DataService
         }
         public async Task<List<Incident>> Oldest5UnresolvedIncidentsAsync()
         {
-            try {
+            try
+            {
                 return await (from incident in _incidentCollection.AsQueryable()
                               where incident.Status == "N" || incident.Status == "I"
                               orderby incident.CreatedAT ascending
@@ -349,9 +372,10 @@ namespace IM_DataAccess.DataService
             var counts = sorted.Take(5).ToList();
 
             return (from data in counts.AsEnumerable()
-                    select new {
+                    select new
+                    {
                         UserId = data.name,
-                        Name =  _userService.GetNameByUserId(data.name).Result,
+                        Name = _userService.GetNameByUserId(data.name).Result,
                         Count = data.count
                     })
                     .ToList();
