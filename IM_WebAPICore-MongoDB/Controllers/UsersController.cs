@@ -86,14 +86,14 @@ namespace IM_WebAPICore_MongoDB.Controllers
             //}
 
 
-            DataGenerator data = new DataGenerator();
-            List<User> users = await _userService.GetAllUsersAsync();
-            var results = data.GenerateMessages(users.Take(50)).Take(2000);
-            foreach(Message message in results)
-            {
-                if (message.From == message.To) continue;
-                await _messageService.AddMessageAsync(message.From, message.To, message.MessageText);
-            }
+            //DataGenerator data = new DataGenerator();
+            //List<User> users = await _userService.GetAllUsersAsync();
+            //var results = data.GenerateMessages(users.Take(50)).Take(2000);
+            //foreach(Message message in results)
+            //{
+            //    if (message.From == message.To) continue;
+            //    await _messageService.AddMessageAsync(message.From, message.To, message.MessageText);
+            //}
 
             return Ok("Data has been generated.");
         }
