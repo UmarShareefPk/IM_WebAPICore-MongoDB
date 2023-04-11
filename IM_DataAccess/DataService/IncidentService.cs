@@ -6,10 +6,13 @@ using MongoDB.Bson;
 using MongoDB.Driver;
 using MongoDB.Driver.Linq;
 using System;
+using System.ComponentModel;
 using System.Data;
+using System.Linq.Expressions;
 using System.Net;
 using System.Xml.Linq;
 using static System.Runtime.InteropServices.JavaScript.JSType;
+using IM_DataAccess.Extensions;
 
 namespace IM_DataAccess.DataService
 {
@@ -190,16 +193,72 @@ namespace IM_DataAccess.DataService
 
         public async Task<IncidentsWithPage> GetIncidentsPageAsync(int pageSize, int pageNumber, string? sortBy, string? sortDirection, string? serach)
         {
-            var incidentQuery = from incident in _incidentCollection.AsQueryable()
+            switch (sortBy.ToLower())
+            {
+                case "createdat":
+                    sortBy = "CreatedAT";
+                    break;
+                case "createdby":
+                    sortBy = "CreatedBy";
+                    break;
+                case "assignedto":
+                    sortBy = "AssignedTo";
+                    break;
+                case "title":
+                    sortBy = "Title";
+                    break;
+                case "description":
+                    sortBy = "Description";
+                    break;
+                case "starttime":
+                    sortBy = "StartTime";
+                    break;
+                case "duedate":
+                    sortBy = "DueDate";
+                    break;
+                case "status":
+                    sortBy = "Status";
+                    break;
+                default:
+                    sortBy = "CreatedAT";
+                    break;
+            }
+            switch(sortDirection.ToLower())
+            {
+                case "asc":
+                    sortDirection = "asc";
+                    break;
+                case "desc":
+                    sortDirection = "desc";
+                    break;
+                default:
+                    sortDirection="desc";
+                    break;
+            }
+
+            var convertProperty = typeof(Incident).GetProperty(sortBy);
+          
+
+            IEnumerable<Incident> incidentQuery = null;
+
+            if (sortDirection == "asc") {
+                 incidentQuery = from incident in _incidentCollection.AsQueryable()
+                                    where incident.Title.ToLower().Contains(serach.ToLower()) || incident.Description.ToLower().Contains(serach.ToLower())                                   
+                                  select incident;
+                incidentQuery = incidentQuery.OrderBy(i => convertProperty.GetValue(i));
+            }
+            else
+            {
+                incidentQuery = from incident in _incidentCollection.AsQueryable()
                                 where incident.Title.ToLower().Contains(serach.ToLower()) || incident.Description.ToLower().Contains(serach.ToLower())
-                                orderby incident.CreatedAT descending
                                 select incident;
+                incidentQuery = incidentQuery.OrderByDescending(i => convertProperty.GetValue(i));
+            }          
 
 
+            int total = incidentQuery.Count();
 
-            int total = incidentQuery.ToEnumerable().Count();
-
-            var incidents = incidentQuery.ToEnumerable().Skip(pageSize * (pageNumber - 1)).Take(pageSize).OrderByDescending(u => u.CreatedAT).ToList();
+            var incidents = incidentQuery.Skip(pageSize * (pageNumber - 1)).Take(pageSize).ToList();
 
             return new IncidentsWithPage
             {
@@ -207,6 +266,8 @@ namespace IM_DataAccess.DataService
                 Incidents = incidents
             };
         }
+
+    
 
         public async Task<bool> UpdateIncidentAsync(string incidentId, string parameter, string value, string userId)
         {
