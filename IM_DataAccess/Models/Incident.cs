@@ -33,4 +33,22 @@ namespace IM_DataAccess.Models
         public List<IncidentLogs> Logs { get; set; }
 
     }
+
+    [BsonIgnoreExtraElements]
+    public class IncidentResults
+    {
+        public ObjectId Id { get; set; }
+        public string CreatedBy { get; set; }
+        public string AssignedTo { get; set; }
+        public DateTime CreatedAT { get; set; }
+        public string Title { get; set; }
+        public string Description { get; set; }
+        public string AdditionalData { get; set; }
+        public DateTime StartTime { get; set; }
+        public DateTime DueDate { get; set; }
+        public string Status { get; set; }
+
+        public User createdByUser { get; set; }
+        public User assignedToUser { get; set; }
+    }
 }

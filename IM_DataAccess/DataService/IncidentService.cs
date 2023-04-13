@@ -13,6 +13,10 @@ using System.Net;
 using System.Xml.Linq;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 using IM_DataAccess.Extensions;
+using System.Collections.Generic;
+using MongoDB.Bson.Serialization;
+using System.Runtime.InteropServices.JavaScript;
+using System.Collections.Immutable;
 
 namespace IM_DataAccess.DataService
 {
@@ -190,84 +194,614 @@ namespace IM_DataAccess.DataService
             }
             else return false;
         }
-
+      
         public async Task<IncidentsWithPage> GetIncidentsPageAsync(int pageSize, int pageNumber, string? sortBy, string? sortDirection, string? serach)
+        {
+            //return await GetIncidentsPageAsyncV2(pageSize,pageNumber, sortBy, sortDirection, serach);
+
+            var sortCol = "CreatedAT"; // for aggregation pipeline
+
+            sortCol = sortBy.ToLower() switch
+            {
+                "createdat" => "CreatedAT",
+                "createdby" => "createdByUser.FirstName",
+                "assignedto" => "assignedToUser.FirstName",
+                "title" => "Title",
+                "description" => "Description",
+                "starttime" => "StartTime",
+                "duedate" => "DueDate",
+                "status" => "Status",
+                _ => "CreatedAT",
+            };
+            sortDirection = sortDirection.ToLower() switch
+            {
+                "asc" => "asc",
+                "desc" => "desc",
+                _ => "desc",
+            };         
+            List<Incident> incidents = new List<Incident>();
+            int count = 0;
+
+            var pResults = _incidentCollection.Aggregate()
+                            .Match(incident => incident.Title.ToLower().Contains(serach.ToLower()) || incident.Description.ToLower().Contains(serach.ToLower()))
+                            .Project(new BsonDocument{
+                                    { "_id", 1 },
+                                    { "Title", 1 },
+                                    {"Description", 1  },
+                                    {"Status", 1 },
+                                    {"StartTime", 1 },
+                                    {"DueDate", 1 },
+                                    {"CreatedAT", 1 },
+                                    {
+                                        "CreatedBy", new BsonDocument{
+                                            {
+
+                                                "$convert", new BsonDocument{
+                                                    { "input", "$CreatedBy" },
+                                                    { "to", "objectId" }
+                                                }
+                                                }
+                                            }
+                                        },
+                                        {
+                                        "AssignedTo", new BsonDocument{
+                                            {
+                                                "$convert", new BsonDocument{
+                                                    { "input", "$AssignedTo" },
+                                                    { "to", "objectId" }
+                                                }
+                                                }
+                                            }
+                                        }
+                                })
+                            .Lookup("Users", "CreatedBy", "_id", "createdByUser")
+                            .Lookup("Users", "AssignedTo", "_id", "assignedToUser")
+                            .Sort(new BsonDocument
+                               (sortCol, sortDirection == "asc" ? 1 : -1)
+                                );
+
+            count = pResults.ToEnumerable().Count();
+            var incidentsData = await pResults.Skip(pageSize * (pageNumber - 1)).Limit(pageSize).ToListAsync();
+
+            foreach (var i in incidentsData)
+            {
+                string id = i.GetValue("_id").RawValue.ToString();
+                string title = i.GetValue("Title").RawValue.ToString();
+                string des = i.GetValue("Description").RawValue.ToString();
+                DateTime startTime = i.GetValue("StartTime").AsDateTime;
+                DateTime duedate = i.GetValue("DueDate").AsDateTime;
+                DateTime createdat = i.GetValue("CreatedAT").AsDateTime;
+                string status = i.GetValue("Status").RawValue.ToString();
+                BsonDocument user = i.GetValue("createdByUser")[0].AsBsonDocument;
+                string createdBy = user.GetValue("FirstName").RawValue.ToString() + " " + user.GetValue("LastName").RawValue.ToString();
+                user = i.GetValue("assignedToUser")[0].AsBsonDocument;
+                string assignedTo = user.GetValue("FirstName").RawValue.ToString() + " " + user.GetValue("LastName").RawValue.ToString();
+
+                var incident = new Incident
+                {
+                    Id = id,
+                    CreatedBy = createdBy,
+                    AssignedTo = assignedTo,
+                    Title = title,
+                    Status = status,
+                    Description = des,
+                    CreatedAT = createdat,
+                    StartTime = startTime,
+                    DueDate = duedate
+                };
+
+                incidents.Add(incident);
+            }
+
+            return new IncidentsWithPage
+            {
+                Total_Incidents = count,
+                Incidents = incidents
+            };
+        }
+
+        Func<Incident, object> orderByFunc = null;
+        public async Task<IncidentsWithPage> GetIncidentsPageAsyncBasic(int pageSize, int pageNumber, string? sortBy, string? sortDirection, string? serach)
         {
             switch (sortBy.ToLower())
             {
                 case "createdat":
                     sortBy = "CreatedAT";
+                    orderByFunc = incident => incident.CreatedAT;
                     break;
                 case "createdby":
-                    sortBy = "CreatedBy";
+                   sortBy = "CreatedBy";
+                    orderByFunc = incident => incident.CreatedBy;
                     break;
                 case "assignedto":
                     sortBy = "AssignedTo";
+                    orderByFunc = incident => incident.AssignedTo;
                     break;
                 case "title":
-                    sortBy = "Title";
+                   sortBy = "Title";
+                    orderByFunc = incident => incident.Title;
                     break;
                 case "description":
                     sortBy = "Description";
+                    orderByFunc = incident => incident.Description;
                     break;
                 case "starttime":
                     sortBy = "StartTime";
+                    orderByFunc = incident => incident.StartTime;
                     break;
                 case "duedate":
                     sortBy = "DueDate";
+                    orderByFunc = incident => incident.DueDate;
                     break;
                 case "status":
                     sortBy = "Status";
+                    orderByFunc = incident => incident.Status;
                     break;
                 default:
                     sortBy = "CreatedAT";
+                    orderByFunc = incident => incident.CreatedAT;
                     break;
             }
-            switch(sortDirection.ToLower())
+            sortDirection = sortDirection.ToLower() switch
             {
-                case "asc":
-                    sortDirection = "asc";
-                    break;
-                case "desc":
-                    sortDirection = "desc";
-                    break;
-                default:
-                    sortDirection="desc";
-                    break;
-            }
-
-            var convertProperty = typeof(Incident).GetProperty(sortBy);
-          
-
+                "asc" => "asc",
+                "desc" => "desc",
+                _ => "desc",
+            };
+            
             IEnumerable<Incident> incidentQuery = null;
 
-            if (sortDirection == "asc") {
-                 incidentQuery = from incident in _incidentCollection.AsQueryable()
-                                    where incident.Title.ToLower().Contains(serach.ToLower()) || incident.Description.ToLower().Contains(serach.ToLower())                                   
-                                  select incident;
-                incidentQuery = incidentQuery.OrderBy(i => convertProperty.GetValue(i));
-            }
+            if (sortDirection == "asc")
+                incidentQuery = _incidentCollection.AsQueryable()
+                 .OrderBy(orderByFunc)
+                 .Where(incident => incident.Title.ToLower().Contains(serach.ToLower()) || incident.Description.ToLower().Contains(serach.ToLower()));
             else
-            {
-                incidentQuery = from incident in _incidentCollection.AsQueryable()
-                                where incident.Title.ToLower().Contains(serach.ToLower()) || incident.Description.ToLower().Contains(serach.ToLower())
-                                select incident;
-                incidentQuery = incidentQuery.OrderByDescending(i => convertProperty.GetValue(i));
-            }          
+                incidentQuery = _incidentCollection.AsQueryable()
+                    .OrderByDescending(orderByFunc)
+                    .Where(incident => incident.Title.ToLower().Contains(serach.ToLower()) || incident.Description.ToLower().Contains(serach.ToLower()));
+                     
+            
+            var count = incidentQuery.Count();
 
-
-            int total = incidentQuery.Count();
-
-            var incidents = incidentQuery.Skip(pageSize * (pageNumber - 1)).Take(pageSize).ToList();
+            var incidents = incidentQuery
+                    .Skip(pageSize * (pageNumber - 1))
+                    .Take(pageSize)
+                    .Select(incident => incident)
+                    .ToList();
 
             return new IncidentsWithPage
             {
-                Total_Incidents = total,
+                Total_Incidents = count,
                 Incidents = incidents
             };
         }
 
-    
+        public async Task<IncidentsWithPage> GetIncidentsPageAsyncV2(int pageSize, int pageNumber, string? sortBy, string? sortDirection, string? serach)
+        {
+           
+            switch (sortBy.ToLower())
+            {
+                case "createdat":
+                    sortBy = "CreatedAT";
+                    orderByFunc = incident => incident.CreatedAT;
+                    break;
+                case "createdby":                  
+                    sortBy = "CreatedBy";
+                    orderByFunc = incident => incident.CreatedBy;
+                    break;
+                case "assignedto":                   
+                    sortBy = "AssignedTo";
+                    orderByFunc = incident => incident.AssignedTo;
+                    break;
+                case "title":                   
+                    sortBy = "Title";
+                    orderByFunc = incident => incident.Title;
+                    break;
+                case "description":
+                    sortBy = "Description";
+                    orderByFunc = incident => incident.Description;
+                    break;
+                case "starttime":
+                    sortBy = "StartTime";
+                    orderByFunc = incident => incident.StartTime;
+                    break;
+                case "duedate":
+                    sortBy = "DueDate";
+                    orderByFunc = incident => incident.DueDate;
+                    break;
+                case "status":
+                    sortBy = "Status";
+                    orderByFunc = incident => incident.Status;
+                    break;
+                default:
+                    sortBy = "CreatedAT";
+                    orderByFunc = incident => incident.CreatedAT;
+                    break;
+            }
+            sortDirection = sortDirection.ToLower() switch
+            {
+                "asc" => "asc",
+                "desc" => "desc",
+                _ => "desc",
+            };
+            // var convertProperty = typeof(Incident).GetProperty(sortBy);
+
+            try
+            {
+
+
+
+                var query = _incidentCollection.AsQueryable();
+                var userQuery = _userCollection.AsQueryable();
+                IOrderedEnumerable<Incident> sorted = null;
+
+                if (sortBy != "CreatedBy" && sortBy != "AssignedTo" && sortDirection == "desc")
+                    sorted = query.OrderByDescending(orderByFunc);
+                else if (sortBy != "CreatedBy" && sortBy != "AssignedTo" && sortDirection == "asc")
+                    sorted = query.OrderBy(orderByFunc);
+                else if (sortBy == "CreatedBy" || sortBy == "AssignedTo")
+                    sorted = query.OrderBy(orderByFunc);
+
+                var join = sorted.Join(userQuery, i => i.AssignedTo, u => u.Id, (i, u) => new { incident = i, assUser = u })
+                    .Join(userQuery, i => i.incident.CreatedBy, u => u.Id, (i, u) => new { incident2 = i, creUser = u })
+                    ;
+
+
+                if (sortBy == "CreatedBy" && sortDirection == "desc")
+                {
+                    join = join.OrderByDescending(iu => iu.creUser.FirstName);
+                }
+                else if (sortBy == "CreatedBy" && sortDirection == "asc")
+                {
+                    join = join.OrderBy(iu => iu.creUser.FirstName);
+                }
+                if (sortBy == "AssignedTo" && sortDirection == "desc")
+                {
+                    join = join.OrderByDescending(iu => iu.incident2.assUser.FirstName);
+                }
+                else if (sortBy == "AssignedTo" && sortDirection == "asc")
+                {
+                    join = join.OrderBy(iu => iu.incident2.assUser.FirstName);
+                }
+
+
+                var filtered = join.Where(j => j.incident2.incident.Title.ToLower().Contains(serach.ToLower()) || j.incident2.incident.Description.ToLower().Contains(serach.ToLower()));
+
+
+                long total = filtered.Count();
+
+                var final = filtered.Skip(pageSize * (pageNumber - 1))
+                        .Take(pageSize)
+                        .Select(incident => incident);
+
+                var incidentQuery = (from data in final
+                                     select new Incident
+                                     {
+                                         Id = data.incident2.incident.Id,
+                                         CreatedAT = data.incident2.incident.CreatedAT,
+                                         CreatedBy = data.creUser.FirstName + " Shareef",
+                                         AssignedTo = data.incident2.assUser.FirstName + " Umar",
+                                         StartTime = data.incident2.incident.StartTime,
+                                         DueDate = data.incident2.incident.DueDate,
+                                         Status = data.incident2.incident.Status,
+                                         Title = data.incident2.incident.Title,
+                                         Description = data.incident2.incident.Description,
+                                         AdditionalData = data.incident2.incident.AdditionalData
+                                     });
+
+
+                // long total = await _incidentCollection.Find(_=>true).CountDocumentsAsync();
+
+                List<Incident> incidents = incidentQuery.ToList();
+                return new IncidentsWithPage
+                {
+                    Total_Incidents = (int)total,
+                    Incidents = incidents
+                };
+            }
+            catch (Exception ex)
+            {
+                return null;
+            }
+        }
+
+        public async Task<IncidentsWithPage> GetIncidentsPageAsyncExp(int pageSize, int pageNumber, string? sortBy, string? sortDirection, string? serach)
+        {
+            var sortCol = "CreatedAT"; // for aggregation pipeline
+
+            switch (sortBy.ToLower())
+            {
+                case "createdat":
+                    sortCol = "CreatedAT";
+                    sortBy = "CreatedAT";
+                    orderByFunc = incident => incident.CreatedAT;
+                    break;
+                case "createdby":
+                    sortCol = "createdByUser.FirstName";
+                    sortBy = "CreatedBy";
+                    orderByFunc = incident => incident.CreatedBy;
+                    break;
+                case "assignedto":
+                    sortCol = "assignedToUser.FirstName";
+                    sortBy = "AssignedTo";
+                    orderByFunc = incident => incident.AssignedTo;
+                    break;
+                case "title":
+                    sortCol = "Title";
+                    sortBy = "Title";
+                    orderByFunc = incident => incident.Title;
+                    break;
+                case "description":
+                    sortCol = "Description";
+                    sortBy = "Description";
+                    orderByFunc = incident => incident.Description;
+                    break;
+                case "starttime":
+                    sortCol = "StartTime";
+                    sortBy = "StartTime";
+                    orderByFunc = incident => incident.StartTime;
+                    break;
+                case "duedate":
+                    sortCol = "DueDate";
+                    sortBy = "DueDate";
+                    orderByFunc = incident => incident.DueDate;
+                    break;
+                case "status":
+                    sortCol = "Status";
+                    sortBy = "Status";
+                    orderByFunc = incident => incident.Status;
+                    break;
+                default:
+                    sortCol = "CreatedAT";
+                    sortBy = "CreatedAT";
+                    orderByFunc = incident => incident.CreatedAT;
+                    break;
+            }
+            sortDirection = sortDirection.ToLower() switch
+            {
+                "asc" => "asc",
+                "desc" => "desc",
+                _ => "desc",
+            };
+            // var convertProperty = typeof(Incident).GetProperty(sortBy);
+
+            /*
+                        IEnumerable<Incident> incidentQuery = null;
+
+                        if (sortDirection == "asc") {
+                            incidentQuery = from incident in _incidentCollection.AsQueryable()
+                                            where incident.Title.ToLower().Contains(serach.ToLower()) || incident.Description.ToLower().Contains(serach.ToLower())
+
+                                            select incident;
+
+                            var tt = _incidentCollection.AsQueryable()
+                                .OrderBy(orderByFunc)
+                                .Join(_userCollection.AsQueryable(), i => i.AssignedTo, u => u.Id, (i, u) => new { incident = i, user = u })
+                                .Where(j => j.incident.Title.ToLower().Contains(serach.ToLower()) || j.incident.Description.ToLower().Contains(serach.ToLower()))
+                                .Skip(pageSize * (pageNumber - 1))
+                                .Take(pageSize)
+                                .Select(incident => incident);
+
+                            incidentQuery = (from data in tt
+                                             select new Incident
+                                             {
+                                                 Id = data.incident.Id,
+                                                 CreatedAT = data.incident.CreatedAT,
+                                                 CreatedBy = data.incident.CreatedBy,
+                                                 AssignedTo = data.user.FirstName + " Umar",
+                                                 StartTime = data.incident.StartTime,
+                                                 DueDate = data.incident.DueDate,
+                                                 Status = data.incident.Status,
+                                                 Title = data.incident.Title,
+                                                 Description = data.incident.Description,
+                                                 AdditionalData = data.incident.AdditionalData
+                                             });
+                            incidentQuery = incidentQuery.OrderBy(i => convertProperty.GetValue(i));
+
+                        }
+                        else
+                        {
+                            incidentQuery = _incidentCollection.AsQueryable()
+                                .OrderByDescending(orderByFunc)
+                                .Where(incident => incident.Title.ToLower().Contains(serach.ToLower()) || incident.Description.ToLower().Contains(serach.ToLower()))
+                                .Skip(pageSize * (pageNumber - 1))
+                                .Take(pageSize)
+                                .Select(incident => incident);
+                            incidentQuery = from incident in _incidentCollection.AsQueryable()
+                                            where incident.Title.ToLower().Contains(serach.ToLower()) || incident.Description.ToLower().Contains(serach.ToLower())
+                                            select incident;
+                            incidentQuery = incidentQuery.OrderByDescending(i => convertProperty.GetValue(i));
+                        } */
+
+            /*     var query = _incidentCollection.AsQueryable();
+                 IOrderedEnumerable<Incident> sorted = null;
+
+                 if (sortBy != "CreatedBy" && sortBy != "AssignedTo" && sortDirection == "desc")
+                     sorted = query.OrderByDescending(orderByFunc);
+                 else if (sortBy != "CreatedBy" && sortBy != "AssignedTo" && sortDirection == "asc")
+                     sorted = query.OrderBy(orderByFunc);
+
+
+                 var join = sorted.Join(_userCollection.AsQueryable(), i => i.AssignedTo, u => u.Id, (i, u) => new { incident = i, user = u })
+                     .Join(_userCollection.AsQueryable(), i => i.incident.CreatedBy, u => u.Id, (i, u) => new { incident2 = i, user2 = u });
+
+
+                 if(sortBy == "CreatedBy" && sortDirection == "desc")
+                 {
+                     join = join.OrderByDescending(iu => iu.user2.FirstName);
+                 }
+                 else if (sortBy == "CreatedBy" && sortDirection == "asc")
+                 {
+                     join = join.OrderBy(iu => iu.user2.FirstName);
+                 }
+                 if (sortBy == "AssignedTo" && sortDirection == "desc")
+                 {
+                     join = join.OrderByDescending(iu => iu.incident2.user.FirstName);
+                 }
+                 else if (sortBy == "AssignedTo" && sortDirection == "asc")
+                 {
+                     join = join.OrderBy(iu => iu.incident2.user.FirstName);
+                 }
+
+
+                 var filtered = join.Where(j => j.incident2.incident.Title.ToLower().Contains(serach.ToLower()) || j.incident2.incident.Description.ToLower().Contains(serach.ToLower()));
+
+
+                 long total = filtered.Count();
+
+                 var final = filtered.Skip(pageSize * (pageNumber - 1))
+                         .Take(pageSize)
+                         .Select(incident => incident);
+
+                 incidentQuery = (from data in final
+                                  select new Incident
+                                  {
+                                      Id = data.incident2.incident.Id,
+                                      CreatedAT = data.incident2.incident.CreatedAT,
+                                      CreatedBy = data.user2.FirstName + " Shareef",
+                                      AssignedTo = data.incident2.user.FirstName + " Umar",
+                                      StartTime = data.incident2.incident.StartTime,
+                                      DueDate = data.incident2.incident.DueDate,
+                                      Status = data.incident2.incident.Status,
+                                      Title = data.incident2.incident.Title,
+                                      Description = data.incident2.incident.Description,
+                                      AdditionalData = data.incident2.incident.AdditionalData
+                                  });
+
+
+                // long total = await _incidentCollection.Find(_=>true).CountDocumentsAsync();
+
+                 List<Incident> incidents = incidentQuery.ToList();
+            */
+
+            List<Incident> incidents = new List<Incident>();
+            int count = 0;
+            try
+            {
+
+                var pResults = _incidentCollection.Aggregate()
+                                .Match(incident => incident.Title.ToLower().Contains(serach.ToLower()) || incident.Description.ToLower().Contains(serach.ToLower()))
+                                .Project(new BsonDocument{
+                                    { "_id", 1 },
+                                    { "Title", 1 },
+                                    {"Description", 1  },
+                                    {"Status", 1 },
+                                    {"StartTime", 1 },
+                                    {"DueDate", 1 },
+                                    {"CreatedAT", 1 },
+                                    {
+                                        "CreatedBy", new BsonDocument{
+                                            {
+
+                                                "$convert", new BsonDocument{
+                                                    { "input", "$CreatedBy" },
+                                                    { "to", "objectId" }
+                                                }
+
+                                                }
+                                            }
+                                        },
+                                        {
+                                        "AssignedTo", new BsonDocument{
+                                            {
+                                                "$convert", new BsonDocument{
+                                                    { "input", "$AssignedTo" },
+                                                    { "to", "objectId" }
+                                                }
+                                                }
+                                            }
+                                        }
+                                    })
+                                .Lookup("Users", "CreatedBy", "_id", "createdByUser")
+                                .Lookup("Users", "AssignedTo", "_id", "assignedToUser")
+                                //.Project(new BsonDocument{
+                                //     { "_id", 1 },
+                                //    { "Title", 1 },
+                                //    {"Description", 1  },
+                                //    {"Status", 1 },
+                                //    {"StartTime", 1 },
+                                //    {"DueDate", 1 },
+                                //    {"CreatedAT", 1 },
+
+                                //    {
+
+                                //        "createdByUser", new BsonDocument{
+                                //            {
+
+                                //                "$convert", new BsonDocument{
+                                //                    { "input", "$Id" },
+                                //                    { "to", "string" }
+                                //                }
+
+                                //                }
+                                //            }
+                                //        },
+                                //    { "assignedToUser", new BsonDocument{
+                                //        {
+                                //            "$map", new BsonDocument{
+                                //                { "input", "$assignedToUser" },
+                                //                { "as", "user" },
+                                //                {
+                                //                    "in", new BsonDocument{
+                                //                        {
+                                //                            "$convert", new BsonDocument{
+                                //                                { "input", "$$user._id" },
+                                //                                { "to", "string" }
+                                //                            }
+                                //                        }
+                                //                    }
+                                //                }
+                                //            }
+                                //        }
+                                //    }
+                                //    }})
+
+
+                                .Sort(new BsonDocument
+                                   (sortCol, sortDirection == "asc" ? 1 : -1)
+                                    );
+                count = pResults.ToEnumerable().Count();
+                var incidentsData = await pResults.Skip(pageSize * (pageNumber - 1)).Limit(pageSize).ToListAsync();
+
+                foreach (var i in incidentsData)
+                {
+                    string id = i.GetValue("_id").RawValue.ToString();
+                    string title = i.GetValue("Title").RawValue.ToString();
+                    string des = i.GetValue("Description").RawValue.ToString();
+                    DateTime startTime = i.GetValue("StartTime").AsDateTime;
+                    DateTime duedate = i.GetValue("DueDate").AsDateTime;
+                    DateTime createdat = i.GetValue("CreatedAT").AsDateTime;
+                    string status = i.GetValue("Status").RawValue.ToString();
+                    BsonDocument user = i.GetValue("createdByUser")[0].AsBsonDocument;
+                    string createdBy = user.GetValue("FirstName").RawValue.ToString() + " " + user.GetValue("LastName").RawValue.ToString();
+                    user = i.GetValue("assignedToUser")[0].AsBsonDocument;
+                    string assignedTo = user.GetValue("FirstName").RawValue.ToString() + " " + user.GetValue("LastName").RawValue.ToString();
+
+                    var incident = new Incident
+                    {
+                        Id = id,
+                        CreatedBy = createdBy,
+                        AssignedTo = assignedTo,
+                        Title = title,
+                        Status = status,
+                        Description = des,
+                        CreatedAT = createdat,
+                        StartTime = startTime,
+                        DueDate = duedate
+                    };
+
+                    incidents.Add(incident);
+                }
+            }
+            catch (Exception ex)
+            {
+            }
+            return new IncidentsWithPage
+            {
+                Total_Incidents = count,
+                Incidents = incidents
+            };
+        }
 
         public async Task<bool> UpdateIncidentAsync(string incidentId, string parameter, string value, string userId)
         {
