@@ -77,34 +77,42 @@ namespace IM_WebAPICore_MongoDB.Controllers
             //}
             DataGenerator data = new DataGenerator();
             List<User> users = await _userService.GetAllUsersAsync();
-            var results = data.GenerateIncidents(users.Take(50)).Take(100000);
+            var results = data.GenerateIncidents(users).Take(100000);
 
             var fileText = System.IO.File.ReadAllText(@"d:\txtfile.txt");
             List<string> lines = fileText.Split('.').ToList();
             int index = 0;
 
-            foreach (var incident in results)
+            try
             {
-                if (lines.Count == index - 4) break;
+                foreach (var incident in results)
+                {
+                    if (lines.Count- 4 < index) 
+                        break;
 
-                string text = lines[index++];
-                incident.Title = text.Length> 100 ? text.Substring(0,100).Replace("\r", "").Replace("\n","") : text.Replace("\r", "").Replace("\n", "");
-                text = lines[index++];
-                incident.Description = text.Length > 200 ? text.Substring(0, 200).Replace("\r", "").Replace("\n", "") : text.Replace("\r", "").Replace("\n", "");
-                text = lines[index++];
-                incident.AdditionalData = text.Length > 200 ? text.Substring(0, 200).Replace("\r", "").Replace("\n", "") : text.Replace("\r", "").Replace("\n", "");
+                    string text = lines[index++];
+                    incident.Title = text.Length > 100 ? text.Substring(0, 100).Replace("\r", "").Replace("\n", "") : text.Replace("\r", "").Replace("\n", "");
+                    text = lines[index++];
+                    incident.Description = text.Length > 200 ? text.Substring(0, 200).Replace("\r", "").Replace("\n", "") : text.Replace("\r", "").Replace("\n", "");
+                    text = lines[index++];
+                    incident.AdditionalData = text.Length > 200 ? text.Substring(0, 200).Replace("\r", "").Replace("\n", "") : text.Replace("\r", "").Replace("\n", "");
 
-                incident.CreatedAT = incident.StartTime.AddDays(-10);
-                if (incident.DueDate <= incident.StartTime)
-                    incident.DueDate = incident.StartTime.AddMonths(10);
+                    incident.CreatedAT = incident.StartTime.AddDays(-10);
+                    if (incident.DueDate <= incident.StartTime)
+                        incident.DueDate = incident.StartTime.AddMonths(10);
 
 
-                if (incident.Title.Length < 20)
-                    continue;
-                if (incident.Description.Length < 20)
-                    continue;
-               
-                await _incidentService.AddIncident(incident);
+                    if (incident.Title.Length < 20)
+                        continue;
+                    if (incident.Description.Length < 20)
+                        continue;
+
+                      await _incidentService.AddIncident(incident);
+                }
+            }
+            catch(Exception ex)
+            {
+                return BadRequest("Error.");
             }
 
 
