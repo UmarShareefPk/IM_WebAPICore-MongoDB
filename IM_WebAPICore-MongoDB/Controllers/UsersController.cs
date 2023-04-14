@@ -101,7 +101,7 @@ namespace IM_WebAPICore_MongoDB.Controllers
                     text = lines[index++];
                     incident.AdditionalData = text.Length > 200 ? text.Substring(0, 200).Replace("\r", "").Replace("\n", "") : text.Replace("\r", "").Replace("\n", "");
 
-                    incident.CreatedAT = incident.StartTime.AddDays(-10);
+                   // incident.CreatedAT = incident.StartTime.AddDays(-10);
                     if (incident.DueDate <= incident.StartTime)
                         incident.DueDate = incident.StartTime.AddMonths(10);
 

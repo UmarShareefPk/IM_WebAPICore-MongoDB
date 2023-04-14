@@ -153,11 +153,12 @@ public class DataGenerator
 
         List<int> num = new List<int>()     { -1,1,2,3,4,5,6,7,8,9,10,11,12, -2,-3,-4 };
         List<int> positiveNum = new List<int>() { 0,1, 2, 3 };
+        List<int> negNum = new List<int>() { 0, -1, -2, -3 };
 
         Faker<Incident> incidentFake;
         incidentFake = new Faker<Incident>()
              //.RuleFor(u => u.Id, null)
-           .RuleFor(u => u.CreatedAT, f => DateTime.UtcNow.AddMonths(f.PickRandom(positiveNum)))
+           .RuleFor(u => u.CreatedAT, f => DateTime.UtcNow.AddMonths(f.PickRandom(negNum)))
            .RuleFor(u => u.Title, f => f.PickRandom(titles))
            .RuleFor(u => u.Description, f => f.PickRandom(titles)+ ". " + f.PickRandom(titles))
            .RuleFor(u => u.AdditionalData, f => f.PickRandom(titles) + ". " + f.PickRandom(titles))
