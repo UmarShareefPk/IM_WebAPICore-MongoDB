@@ -40,6 +40,7 @@ namespace IM_DataAccess.DataService
         Task<object> OverallWidgetAsync();
         Task<bool> UpdateCommentAsync(string commentId, string commentText, string userId);
         Task<bool> UpdateIncidentAsync(string incidentId, string parameter, string value, string userId);
+        Task<bool> UpdateCreateDateAsync();
     }
 
     public class IncidentService : IIncidentService
@@ -830,6 +831,23 @@ namespace IM_DataAccess.DataService
                         IncidentId = incidentId,
                     });
                 }
+                return true;
+            }
+
+            return false;
+        }
+
+        public async Task<bool> UpdateCreateDateAsync()
+        {
+       
+            var filter = Builders<Incident>.Filter
+                .Gt(i => i.CreatedAT, DateTime.UtcNow);
+            var update = Builders<Incident>.Update
+                .Set("CreatedAT", DateTime.UtcNow.AddDays(-10));
+
+            var updateResult = await _incidentCollection.UpdateManyAsync(filter, update);
+            if (updateResult.ModifiedCount > 0)
+            {            
                 return true;
             }
 

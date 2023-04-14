@@ -79,6 +79,7 @@ namespace IM_WebAPICore_MongoDB.Controllers
             List<User> users = await _userService.GetAllUsersAsync();
             var results = data.GenerateIncidents(users).Take(100000);
 
+            await _incidentService.UpdateCreateDateAsync();
            
             try
             {
@@ -111,7 +112,7 @@ namespace IM_WebAPICore_MongoDB.Controllers
                     if (incident.Description.Length < 20)
                         continue;
 
-                      await _incidentService.AddIncident(incident);
+                     // await _incidentService.AddIncident(incident);
                 }
             }
             catch(Exception ex)
