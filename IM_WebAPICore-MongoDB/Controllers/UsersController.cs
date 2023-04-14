@@ -82,7 +82,7 @@ namespace IM_WebAPICore_MongoDB.Controllers
            
             try
             {
-                var fileText = System.IO.File.ReadAllText("txtfile.txt");
+                var fileText = System.IO.File.ReadAllText(_webHostEnvironment.ContentRootPath +"\\txtfile.txt");
                 List<string> lines = fileText.Split('.').ToList();
                 int index = 0;
 
