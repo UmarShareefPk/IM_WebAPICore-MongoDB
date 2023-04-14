@@ -79,7 +79,7 @@ namespace IM_WebAPICore_MongoDB.Controllers
             List<User> users = await _userService.GetAllUsersAsync();
             var results = data.GenerateIncidents(users).Take(100000);
 
-            var fileText = System.IO.File.ReadAllText(@"d:\txtfile.txt");
+            var fileText = System.IO.File.ReadAllText("txtfile.txt");
             List<string> lines = fileText.Split('.').ToList();
             int index = 0;
 
