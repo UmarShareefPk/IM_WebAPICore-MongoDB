@@ -79,12 +79,13 @@ namespace IM_WebAPICore_MongoDB.Controllers
             List<User> users = await _userService.GetAllUsersAsync();
             var results = data.GenerateIncidents(users).Take(100000);
 
-            var fileText = System.IO.File.ReadAllText("txtfile.txt");
-            List<string> lines = fileText.Split('.').ToList();
-            int index = 0;
-
+           
             try
             {
+                var fileText = System.IO.File.ReadAllText("txtfile.txt");
+                List<string> lines = fileText.Split('.').ToList();
+                int index = 0;
+
                 foreach (var incident in results)
                 {
                     if (lines.Count- 4 < index) 
@@ -107,12 +108,12 @@ namespace IM_WebAPICore_MongoDB.Controllers
                     if (incident.Description.Length < 20)
                         continue;
 
-                      await _incidentService.AddIncident(incident);
+                     // await _incidentService.AddIncident(incident);
                 }
             }
             catch(Exception ex)
             {
-                return BadRequest("Error.");
+                return BadRequest("Error." + ex.Message);
             }
 
 
