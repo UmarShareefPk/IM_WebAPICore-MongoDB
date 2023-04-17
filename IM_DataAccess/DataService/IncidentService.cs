@@ -199,6 +199,8 @@ namespace IM_DataAccess.DataService
         public async Task<IncidentsWithPage> GetIncidentsPageAsync(int pageSize, int pageNumber, string? sortBy, string? sortDirection, string? serach)
         {
             //return await GetIncidentsPageAsyncV2(pageSize,pageNumber, sortBy, sortDirection, serach);
+            if(sortBy.ToLower() == "assignedto" || sortBy.ToLower() == "createdby")
+                return await GetIncidentsPageAsyncV2(pageSize, pageNumber, sortBy, sortDirection, serach);
 
             var sortCol = "CreatedAT"; // for aggregation pipeline
 
