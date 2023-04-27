@@ -11,10 +11,23 @@ namespace IM.Hubs
     public class NotificationHub : Hub
     {
         private readonly IUserService _userService;
+        private static List<string> users = new List<string>();
         public NotificationHub(IUserService userService)
         {
             _userService = userService;
         }
+
+        public override Task OnConnectedAsync()
+        {
+            users.Add(Context.ConnectionId);
+            return base.OnConnectedAsync();
+        }
+        public override Task OnDisconnectedAsync(Exception? exception)
+        {
+            users.Remove(Context.ConnectionId);
+            return base.OnDisconnectedAsync(exception);
+        }
+
         public void Send( string message)
         {
             string s = "iGD7rER_rNOT44SNeTLbfA";
@@ -34,23 +47,17 @@ namespace IM.Hubs
             List<string> hubIds = await _userService.GetHubIdsAsync(incidentId , userId);
 
             if (hubIds is null)
-                return;
-           // await _usersMethods.LogSignalRAsync("Hub function called");
+                return;           
 
             foreach(string id in hubIds)
             {
                 try
                 {
-                    await Clients.Client(id).SendAsync("UpdateNotifications", incidentId);
-                 //   await _usersMethods.LogSignalRAsync("No Error");
+                    await Clients.Client(id).SendAsync("UpdateNotifications", incidentId);                 
                 }
-                catch(Exception ex)
-                {
-                   // await _usersMethods.LogSignalRAsync("Failed:" + ex.Message);
-                }
+                catch(Exception ex)  {  }
             }
         }
-
 
         public async Task SendMessageAsync(string conversationId, string userId, object newMessage, bool isNewConversation)
         {
